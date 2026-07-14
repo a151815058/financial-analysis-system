@@ -1,7 +1,7 @@
 # 系統功能規格說明書 (Living Documentation)
 
 > **專案名稱**：各公司各季度財務分析與股價預測系統
-> **文件版本**：v0.5（Phase 04 完成）
+> **文件版本**：v0.6（Phase 05 完成，含未驗證項目說明）
 > **最後更新**：2026-07-14
 
 ## 【第一部分：人類閱讀區】
@@ -102,10 +102,24 @@ _(SHA-256 驗證結果待 Phase 05 部署完成後同步)_
 
 ### 六、 附錄
 
-#### 附錄 A：維運需求
+#### 附錄 A：部署架構（Phase 05）
+
+| 項目 | 內容 |
+| :--- | :--- |
+| 部署方式 | Docker（`Dockerfile` + `docker-compose.yml`：app + db + nginx 三服務） |
+| 正式資料庫 | PostgreSQL 16（開發/測試維持 SQLite） |
+| 反向代理 | nginx（HTTPS 導向、TLS 1.2+、安全標頭、資料庫/app 埠口不對外開放） |
+| 環境參數 | 見 `05_deployment/outputs/.env.example`（POSTGRES_*、ALPHA_VANTAGE_API_KEY、SEC_EDGAR_USER_AGENT） |
+| SBOM | `05_deployment/outputs/sbom.json`（19 個套件元件） |
+| 建置完整性 | `05_deployment/outputs/build_manifest.json`（33 檔 SHA-256，已重新驗證一致） |
+| 數位簽章 | 未執行（本環境無簽章憑證），以 SHA-256 作為替代完整性驗證，詳見 `signature_status.json` |
+
+> ⚠️ **驗證限制**：本機環境未安裝 Docker/nginx/PostgreSQL，上述組態檔案**已產出但未經實際建置/執行驗證**。已驗證項目：應用程式（非容器化）健康檢查通過、SHA-256 完整性比對一致、Git pre-commit 密鑰掃描 hook 實測攔截有效。詳見 `05_deployment/outputs/deployment_topology.md`。
+
+#### 附錄 B：維運需求
 _(待 Phase 06 完成後自動同步)_
 
-#### 附錄 B：變更紀錄
+#### 附錄 C：變更紀錄
 
 | 日期 | 階段 | 版號 | 摘要 |
 | :--- | :--- | :--- | :--- |
@@ -114,6 +128,7 @@ _(待 Phase 06 完成後自動同步)_
 | 2026-07-14 | 02（系統設計） | v0.3 | 確認 OI-001（Alpha Vantage）；產出 DB Schema（7 表）、API 規格（7 端點）、用例圖、活動圖、時序圖、威脅建模；不含 UI 雛型；Evaluator 通過（94 分）；建立 Phase 02 Baseline；Phase 03 解鎖 |
 | 2026-07-14 | 03（開發與編碼） | v0.4 | 完成 13 項任務實作；解決 OI-002/OI-003；49 項單元測試全數通過；ruff/bandit/pip-audit 全數乾淨；安全檢核發現並當場修復稽核日誌缺來源IP；Evaluator 通過（97 分）；建立 Phase 03 Baseline；Phase 04 解鎖 |
 | 2026-07-14 | 04（測試驗證） | v0.5 | 新增 9 項系統整合測試（真實 HTTP），共 58 項測試全數通過，覆蓋率 92.5%；執行 DAST 等效測試無 Critical/High 風險；發現並修復 BUG_001；Evaluator 通過（98 分）；建立 Phase 04 Baseline；Phase 05 解鎖 |
+| 2026-07-14 | 05（部署發布） | v0.6 | 決策：PostgreSQL + Docker；產出 Dockerfile/docker-compose/nginx.conf/SBOM/build_manifest；因環境無 Docker 未實際建置驗證，如實記錄於評分（加權總分 66，部署安全子項 90% 通過安全關卡）；建立 Phase 05 Baseline；Phase 06 解鎖 |
 
 ## 【第二部分：機器執行區】
 

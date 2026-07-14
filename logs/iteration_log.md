@@ -19,3 +19,7 @@
 | 2026-07-14T04:00:00 | 04_testing | Generator | 撰寫並執行 9 項系統整合測試（真實 uvicorn 子行程 + HTTP）；執行覆蓋率分析（92.5%）；執行 DAST 等效手動測試（HTTP 標頭、注入、輸入驗證邊界）；撰寫並實測 run_tests.bat（發現並修復 2 項腳本邏輯錯誤） | 成功，58/58 測試通過 |
 | 2026-07-14T04:10:00 | 04_testing | Evaluator | 需求測試覆蓋率 + 雙軌測試通過率 + Bug追蹤完整性 + 回歸策略 + 安全測試審查 | 發現 1 項 Trivial 缺陷（ResourceWarning 未釋放連線），Generator 當場修復，綜合評分 98 |
 | 2026-07-14T04:15:00 | 全域 Agent | Global Agent | 更新 traceability_matrix.md、system_specification.md；建立 Phase 04 Baseline v1；修正 Phase 03 Baseline MANIFEST_hashes.txt 自我參照錯誤；釋放 Phase 05 權限 | 成功 |
+| 2026-07-14T04:20:00 | 05_deployment | Planner | 確認部署決策（使用者選擇）：正式資料庫 PostgreSQL、部署方式 Docker（不實際 build）；規劃服務拓樸與回滾方案 | 成功 |
+| 2026-07-14T04:35:00 | 05_deployment | Generator | 產出 Dockerfile/docker-compose.yml/nginx.conf/SBOM/build_manifest.json/signature_status.json/security_deployment_checklist.md；發現框架 generate_sbom.py 與 install_hooks.py 於本環境有 bug，改手動等效產出並回報待辦事項 #6/#7；手動安裝 pre-commit 密鑰掃描 hook 並實測驗證 | 成功（環境限制詳實記錄） |
+| 2026-07-14T04:42:00 | 05_deployment | Evaluator | 組態基準比對（重新計算 33 檔 SHA-256 比對一致）+ 可用度核對（僅應用程式層級，非容器化）+ 簽章校驗（誠實記錄不可用）+ 組態正確性（靜態審查）+ 部署安全完整性審查 | 加權總分 66（如實反映未經真實基礎設施驗證），部署安全子項 90% 通過安全關卡 |
+| 2026-07-14T04:45:00 | 全域 Agent | Global Agent | 更新 traceability_matrix.md、system_specification.md；建立 Phase 05 Baseline v1（含誠實驗證限制說明）；釋放 Phase 06 權限 | 成功 |

@@ -1,0 +1,138 @@
+{
+  "generated_at": "2026-07-14T13:15:54.992942+00:00",
+  "build_id": "financial-analysis-system-phase05-build1",
+  "files": [
+    {
+      "path": "02_system_design/outputs/db_schema.sql",
+      "sha256": "1b4000c046c7dfe05fe8e5a46a639fa50347461174e4444833be2c297fc418ab"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/audit.py",
+      "sha256": "75f99d597ebf69dd501f615e9290bc9694e6b4523cc11ee361e86dcf158bea64"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/auth.py",
+      "sha256": "449dd8309db4284f8dfc2d8960135da81dd62f9c35a358028f75b5543f272102"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/config.py",
+      "sha256": "6d40f2a2d54a1a87c4cff80a0656cf7fb557383327952366b8772d34cf327872"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/db_models.py",
+      "sha256": "4be3d58353d127d2fa6a6130069203a5239345ee38c0a307efd597c916f88337"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/db_session.py",
+      "sha256": "527bdda2ee827182946f1434c3b6f9c2891036ab55d444c1860cd5010bc8b27e"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/ingestion/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/ingestion/alpha_vantage_client.py",
+      "sha256": "3b13d14f7a83b7f32be45d059aa461b6d8893edd016ca7f5ad4b2f62d5420e0c"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/ingestion/http_utils.py",
+      "sha256": "8a01b3040f012502c2762efc0241606c67eb74fc00f2e608adc7c1db35dd946a"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/ingestion/mops_client.py",
+      "sha256": "3cc55675d0ea11056076e23f91940b665be12eafebe3bf59075b08aa84321a61"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/ingestion/normalizer.py",
+      "sha256": "a15ff6e57628f578721bb2916bd7172ec2d0d5936fc532508f7ed1a9e2ca7643"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/ingestion/sec_edgar_client.py",
+      "sha256": "e74caf56193df9215e4cf2864bd04de62043884da04ffefd8c01c34231dfbb21"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/main.py",
+      "sha256": "656aa49eeb866dba10c163ac89c797eecea026f00dd3cf2a1b6f41e5a1c8062b"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/prediction/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/prediction/backtest.py",
+      "sha256": "80bd3af93c63738f67c4c00fa307942f5198ef1ca474fb74e22234af0d1d93ce"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/prediction/ensemble.py",
+      "sha256": "002b74ea4e1471b681addce307d2a76f1aa20ad2ba9c03d1318b38a48f3d7217"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/prediction/factor_model.py",
+      "sha256": "dbb031a63aeb1b177986b4216985362f06674c637023bacee5f07f813c48e2c8"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/prediction/timeseries_model.py",
+      "sha256": "6b19f26a99565b6b6dc3527dd596fbcff09aebac77411e080688892252de49cb"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/routers/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/routers/admin.py",
+      "sha256": "94ee631f11021ee40f707a28f73996e94bf61db37a145ea50f6fdf5615a91fe3"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/routers/companies.py",
+      "sha256": "6413beb079202a7226b4455b39d49a18f3c5115f86985175858a204a8c9b863f"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/routers/predictions.py",
+      "sha256": "47c3a017f411a17cb0430b1e892c75682d13631eb096d8f0928bf2148ad91cf5"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/scheduler.py",
+      "sha256": "f07f79100e0615db7b51203c339c69bfbc493c99ead7c6e4f2c7c340dd457cb3"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/app/schemas.py",
+      "sha256": "1bc85f2cff9fe9bfec5dc5af493e4fffd1c6c839dfa46621b9b2e5f808a48f11"
+    },
+    {
+      "path": "03_implementation_and_coding/outputs/requirements.txt",
+      "sha256": "b202d11739340390ad8e4c791fe20e2ab44cbd5afcdce69262cb847095538838"
+    },
+    {
+      "path": "05_deployment/outputs/.env.example",
+      "sha256": "4411f135c1e13405e1671573935cbaec38a353196f74b184144faaae1c47184e"
+    },
+    {
+      "path": "05_deployment/outputs/Dockerfile",
+      "sha256": "8b8e6313997b1aaf96db7e17c06493b7d19c9a327d136dcca3895d7bab5936c9"
+    },
+    {
+      "path": "05_deployment/outputs/deployment_topology.md",
+      "sha256": "4e4765deafcd55c8aa1cce158794ccf1750556e14544836979cfc3bd8b8fc56d"
+    },
+    {
+      "path": "05_deployment/outputs/docker-compose.yml",
+      "sha256": "16be5a33a62c2217383ec289ff0c75e7998aa1d6dc572c2458d7536fed461955"
+    },
+    {
+      "path": "05_deployment/outputs/nginx/nginx.conf",
+      "sha256": "97f9bcc87299f1a7960dc3252a6ca946871611a3866cb93f58be8d7f2c626976"
+    },
+    {
+      "path": "05_deployment/outputs/sbom.json",
+      "sha256": "6b43c1141510ec10ae0cfc42d7b50cf661ecfef9bbd011c20a96298629be0a45"
+    },
+    {
+      "path": "05_deployment/outputs/security_deployment_checklist.md",
+      "sha256": "3c84707fa92f57e3918dc6566c1062e984dacea38d685144e1496d2bee2d3612"
+    }
+  ]
+}

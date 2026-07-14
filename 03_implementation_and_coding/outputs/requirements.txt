@@ -13,6 +13,9 @@ scipy==1.17.1
 beautifulsoup4==4.15.0
 lxml==6.1.1
 
+# 正式環境資料庫驅動（PostgreSQL，Phase 05 決策）；開發/測試沿用內建 sqlite3
+psycopg[binary]==3.3.4
+
 # dev/test dependencies
 pytest==9.1.1
 httpx==0.28.1

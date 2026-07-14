@@ -1,7 +1,7 @@
 {
   "project": "financial-analysis-system",
   "current_role": "developer",
-  "last_updated": "2026-07-14T04:15:00",
+  "last_updated": "2026-07-14T04:45:00",
   "phases": {
     "01_planning_and_analysis": {
       "status": "completed",
@@ -31,8 +31,16 @@
       "completed_at": "2026-07-14T04:15:00",
       "ssot_integrity_checked": true
     },
-    "05_deployment": { "status": "in_progress", "baseline": null, "completed_at": null },
-    "06_maintenance": { "status": "locked", "baseline": null, "completed_at": null }
+    "05_deployment": {
+      "status": "completed",
+      "deployment_verified_in_real_infra": false,
+      "baseline": "baseline/phase-05/baseline-v1/",
+      "evaluator_score": { "config_baseline_integrity": 27, "availability_check": 18, "signature_verification": 6, "config_correctness": 6, "deployment_security": 9, "weighted_total": 66 },
+      "note": "本環境無 Docker/nginx/PostgreSQL，組態已產出但未實際建置/執行驗證，分數如實反映現況。部署安全子項 9/10=90% 已達 min_security_score(70%) 安全關卡。",
+      "completed_at": "2026-07-14T04:45:00",
+      "ssot_integrity_checked": true
+    },
+    "06_maintenance": { "status": "in_progress", "baseline": null, "completed_at": null }
   },
   "phase_baseline_enabled": true,
   "security_baseline": {
@@ -55,6 +63,12 @@
         "score_pct": 100,
         "report": "04_testing/outputs/dast_report.md",
         "note": "DAST 等效測試（ZAP 環境不可用），核心攻擊面無 Critical/High 風險"
+      },
+      "05_deployment": {
+        "checked_at": "2026-07-14T04:45:00",
+        "score_pct": 90,
+        "report": "05_deployment/outputs/security_deployment_checklist.md",
+        "note": "Secret 管理/網路隔離/安全標頭已落實並實測（pre-commit hook）；TLS 憑證與備份排程待實際部署環境"
       }
     }
   },
@@ -63,10 +77,10 @@
   },
   "guided_workflow": {
     "enabled": true,
-    "current_phase": "05_deployment",
+    "current_phase": "06_maintenance",
     "current_step": 1,
-    "completed_steps": ["01:1_目標確認", "01:2_輸入確認", "01:3_skill選取(略)", "01:4_輸出定義", "01:5_執行完成", "02:1_目標確認(OI-001確認)", "02:2_輸入確認", "02:3_skill選取(略)", "02:4_輸出定義", "02:5_執行完成", "03:1_目標確認", "03:2_輸入確認", "03:3_skill選取(略)", "03:4_輸出定義", "03:5_執行完成", "04:1_目標確認", "04:2_輸入確認", "04:3_skill選取(略)", "04:4_輸出定義", "04:5_執行完成"],
+    "completed_steps": ["01:1_目標確認", "01:2_輸入確認", "01:3_skill選取(略)", "01:4_輸出定義", "01:5_執行完成", "02:1_目標確認(OI-001確認)", "02:2_輸入確認", "02:3_skill選取(略)", "02:4_輸出定義", "02:5_執行完成", "03:1_目標確認", "03:2_輸入確認", "03:3_skill選取(略)", "03:4_輸出定義", "03:5_執行完成", "04:1_目標確認", "04:2_輸入確認", "04:3_skill選取(略)", "04:4_輸出定義", "04:5_執行完成", "05:1_目標確認(DB+部署方式確認)", "05:2_輸入確認", "05:3_skill選取(略)", "05:4_輸出定義", "05:5_執行完成"],
     "started_at": "2026-07-14T00:00:00",
-    "last_active": "2026-07-14T04:15:00"
+    "last_active": "2026-07-14T04:45:00"
   }
 }

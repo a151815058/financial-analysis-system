@@ -79,6 +79,18 @@
 - 已知限制記錄：REQ_008 的 admin 觸發端點目前僅記錄稽核日誌，尚未實際串接資料擷取/推論管線（Phase 03 任務邊界內的合理範圍，非缺陷，已於 `test_results.md` 第五節說明）。
 - 下一步：Phase 05 部署發布（PostgreSQL 正式資料庫決策、Docker/系統服務化、環境變數與密鑰管理、SBOM、HTTPS/反向代理設定，並回頭補齊 Phase 04 DAST 報告中列出的 HTTP 安全標頭）。
 
+### 2026-07-14 — Session 1（續）：Phase 05 部署發布完成（含誠實揭露的環境限制）
+
+- 詢問使用者兩個關鍵決策：正式資料庫（選定 PostgreSQL，產出遷移設定不實際連線）、部署方式（選定 Docker，產出組態不實際 build，因本機無 Docker）。
+- Planner/Generator 產出：`Dockerfile`（多階段、非 root 使用者執行、HEALTHCHECK）、`docker-compose.yml`（app+db+nginx 三服務，db/app 不對外開放埠口，僅 nginx 對外）、`nginx.conf`（HTTPS 導向、TLS 1.2+、**回應 Phase 04 DAST 發現**補上缺少的安全標頭）、`sbom.json`、`build_manifest.json`、`signature_status.json`、`deployment_topology.md`（含回滾方案）、`security_deployment_checklist.md`。
+- **發現並回報 2 項框架腳本瑕疵**（記錄於框架根目錄 `待辦事項.md` #6/#7，未直接修改框架，遵循「反饋走待辦」規則）：
+  1. `scripts/security/generate_sbom.py` 硬編碼裸 `pip freeze`，本環境僅 `python -m pip` 可用，靜默失敗且不報錯 → 改手動產生等效 SBOM
+  2. `scripts/security/install_hooks.py` 寫死指向框架自身倉庫路徑，無法用於任何獨立專案 → 手動安裝 pre-commit hook 至本專案 `.git/hooks/pre-commit`，並以含偽造 API Key 之真實測試檔驗證確實攔截 commit
+- **誠實的 Evaluator 評分**：由於本機環境無 Docker/nginx/PostgreSQL，多數 Phase 05 核心產出（映像檔建置、容器編排啟動、反向代理實際轉發、資料庫實際連線）**無法實際驗證**。沒有為了好看而灌水評分，加權總分僅 66（明顯低於 Phase 01~04 的 92~98），如實反映「組態已產出但未經真實基礎設施驗證」的現況。部署安全子項單獨達 90%，通過安全關卡門檻（70%）。
+- 已完成的真實驗證（不需 Docker）：`build_manifest.json` 33 檔 SHA-256 重新計算比對一致；應用程式（非容器化）健康檢查 200 OK；PostgreSQL 驅動 `psycopg[binary]` 安裝成功且 SQLAlchemy engine 可建立（未連線）；pre-commit hook 真實攔截測試。
+- 全域 Agent 已同步：`traceability_matrix.md`、`system_specification.md` 更新至 v0.6（新增附錄說明部署架構與驗證限制）；建立 `baseline/phase-05/baseline-v1/`（MANIFEST.md 明確列出「已驗證」vs「未能驗證」項目）；`phase_gates.json` 更新（05 completed 但標記 `deployment_verified_in_real_infra: false`，06 in_progress）。
+- 下一步：Phase 06 維運營運（日誌分析、監控指標、Hotfix 流程），並在使用者未來取得 Docker/PostgreSQL 環境後，回頭補做 Phase 05 的真實部署驗證（`security_deployment_checklist.md` 待辦清單第 5 項）。
+
 ## 關鍵決策記錄
 
 | 時間 | 決策 | 理由 |
@@ -95,11 +107,13 @@
 | 2026-07-14 | requirements.txt 明確釘選 scipy==1.17.1 | scipy 1.18.0 官方 cp314 Windows wheel 之 `scipy.signal` 編譯擴充損壞，1.17.1 驗證可正常運作 |
 | 2026-07-14 | Phase 04 不寫 Playwright UI 測試，改用真實 HTTP 系統整合測試 | 系統無網頁 UI，Playwright 不適用；改以啟動真實服務進行端到端 HTTP 驗證，達到等效的「非 mock、真實環境」驗證目的 |
 | 2026-07-14 | DAST 以手動腳本取代 OWASP ZAP | 本環境無 Java，ZAP 無法安裝；改以針對相同攻擊面（認證/注入/輸入驗證/錯誤洩漏）手動測試，並在報告中明確註記涵蓋廣度不如 ZAP，非隱瞞限制 |
+| 2026-07-14 | Phase 05 部署評分如實給低分（66），不因「已盡力產出組態」而灌水 | 本機無 Docker/PostgreSQL，多數 Evaluator 審查項目（建置/啟動/連線/簽章）本質上無法驗證；誠實評分才能讓使用者清楚知道哪些東西是「寫好了」而非「驗證過」 |
+| 2026-07-14 | 框架腳本瑕疵發現後不直接修改框架，改記錄至待辦事項.md | 遵循框架「反饋走待辦」規則：developer 角色只能反饋，不能直接改框架根目錄檔案 |
 
 ## 當前狀態
 
-- 目前階段：Phase 05（部署發布）— `in_progress`（Phase 01~04 已完成並各自建立 Baseline v1）
-- 下一步建議：Phase 05 決定正式資料庫（PostgreSQL）與部署方式（Docker 或系統服務）、環境變數/密鑰管理、SBOM 產出、HTTPS 與反向代理設定（同時補上 Phase 04 DAST 報告列出的 HTTP 安全標頭）。
+- 目前階段：Phase 06（維護與營運）— `in_progress`（Phase 01~05 已完成並各自建立 Baseline v1；Phase 05 之容器化/實際部署驗證仍待真實 Docker 環境補做）
+- 下一步建議：Phase 06 規劃日誌分析與監控指標（對應 audit_logs 與 predictions/backtest 資料）、Hotfix 流程、回歸測試機制。同時提醒使用者：待取得 Docker/PostgreSQL 環境後，應回頭執行 `05_deployment/outputs/security_deployment_checklist.md` 待辦清單（TLS 憑證、備份排程、`docker compose up` 實際驗證）。
 
 ## Git 版本歷程
 

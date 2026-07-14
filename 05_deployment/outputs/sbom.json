@@ -1,0 +1,127 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:da41788e-3565-4553-be97-a8c60d1d4f9e",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-07-14T08:27:05.859658+00:00",
+    "component": {
+      "name": "financial-analysis-system",
+      "type": "application",
+      "version": "0.5.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "fastapi",
+      "version": "0.139.0",
+      "purl": "pkg:pypi/fastapi@0.139.0"
+    },
+    {
+      "type": "library",
+      "name": "uvicorn",
+      "version": "0.51.0",
+      "purl": "pkg:pypi/uvicorn@0.51.0"
+    },
+    {
+      "type": "library",
+      "name": "pydantic",
+      "version": "2.13.4",
+      "purl": "pkg:pypi/pydantic@2.13.4"
+    },
+    {
+      "type": "library",
+      "name": "SQLAlchemy",
+      "version": "2.0.51",
+      "purl": "pkg:pypi/SQLAlchemy@2.0.51"
+    },
+    {
+      "type": "library",
+      "name": "requests",
+      "version": "2.34.2",
+      "purl": "pkg:pypi/requests@2.34.2"
+    },
+    {
+      "type": "library",
+      "name": "python-dotenv",
+      "version": "1.2.2",
+      "purl": "pkg:pypi/python-dotenv@1.2.2"
+    },
+    {
+      "type": "library",
+      "name": "APScheduler",
+      "version": "3.11.3",
+      "purl": "pkg:pypi/APScheduler@3.11.3"
+    },
+    {
+      "type": "library",
+      "name": "pandas",
+      "version": "3.0.3",
+      "purl": "pkg:pypi/pandas@3.0.3"
+    },
+    {
+      "type": "library",
+      "name": "numpy",
+      "version": "2.5.1",
+      "purl": "pkg:pypi/numpy@2.5.1"
+    },
+    {
+      "type": "library",
+      "name": "scikit-learn",
+      "version": "1.9.0",
+      "purl": "pkg:pypi/scikit-learn@1.9.0"
+    },
+    {
+      "type": "library",
+      "name": "statsmodels",
+      "version": "0.14.6",
+      "purl": "pkg:pypi/statsmodels@0.14.6"
+    },
+    {
+      "type": "library",
+      "name": "scipy",
+      "version": "1.17.1",
+      "purl": "pkg:pypi/scipy@1.17.1"
+    },
+    {
+      "type": "library",
+      "name": "beautifulsoup4",
+      "version": "4.15.0",
+      "purl": "pkg:pypi/beautifulsoup4@4.15.0"
+    },
+    {
+      "type": "library",
+      "name": "lxml",
+      "version": "6.1.1",
+      "purl": "pkg:pypi/lxml@6.1.1"
+    },
+    {
+      "type": "library",
+      "name": "pytest",
+      "version": "9.1.1",
+      "purl": "pkg:pypi/pytest@9.1.1"
+    },
+    {
+      "type": "library",
+      "name": "httpx",
+      "version": "0.28.1",
+      "purl": "pkg:pypi/httpx@0.28.1"
+    },
+    {
+      "type": "library",
+      "name": "ruff",
+      "version": "unpinned"
+    },
+    {
+      "type": "library",
+      "name": "bandit",
+      "version": "unpinned"
+    },
+    {
+      "type": "library",
+      "name": "pip-audit",
+      "version": "unpinned"
+    }
+  ]
+}

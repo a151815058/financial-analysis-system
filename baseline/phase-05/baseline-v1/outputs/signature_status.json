@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-07-14T04:45:00+00:00",
+  "signing_status": "not_available",
+  "reason": "本機開發環境無程式碼簽章憑證（Code Signing Certificate）與私鑰，未執行實際數位簽章。Docker 映像檔亦因本環境未安裝 Docker 而未實際建置，故無映像檔可供簽章。",
+  "integrity_verification_alternative": {
+    "method": "SHA-256",
+    "description": "以 build_manifest.json 中記錄之 SHA-256 雜湊值作為建置產物完整性驗證之替代機制，非取代正式數位簽章。",
+    "manifest_ref": "05_deployment/outputs/build_manifest.json"
+  },
+  "recommendation_before_production": [
+    "取得組織之程式碼簽章憑證（如 Docker Content Trust / cosign 用於容器映像簽章）",
+    "於具備 Docker 環境執行 docker build 後，使用 cosign sign 對映像檔簽章",
+    "簽章驗證應納入 CI/CD 管線，未通過簽章驗證之映像檔禁止部署至生產環境"
+  ]
+}
