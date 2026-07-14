@@ -1,0 +1,23 @@
+# Phase 04 IO 檔案合約（@io set 產生）
+phase: 04_testing
+inputs:
+  - file: implementation_task_list.md
+    required: true
+    from_phase: 03_implementation_and_coding
+    description: 實作任務清單與原始碼
+outputs:
+  - file: api_tests/
+    required: true
+    description: pytest API 測試腳本（財報查詢、預測結果端點）
+  - file: ui_tests/
+    required: false
+    description: Playwright UI 測試腳本（若有前端報表介面）
+  - file: test_results.md
+    required: true
+    description: 測試結果報告（通過率、覆蓋率）
+  - file: dast_report.md
+    required: true
+    description: "🔒 動態應用安全測試報告"
+  - file: zap_report.html
+    required: false
+    description: "🔒 OWASP ZAP 掃描報告"

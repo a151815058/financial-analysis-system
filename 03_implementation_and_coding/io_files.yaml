@@ -1,0 +1,24 @@
+# Phase 03 IO 檔案合約（@io set 產生）
+phase: 03_implementation_and_coding
+inputs:
+  - file: db_schema.sql
+    required: true
+    from_phase: 02_system_design
+    description: 資料庫 Schema
+  - file: api_spec.md
+    required: true
+    from_phase: 02_system_design
+    description: API 規格
+outputs:
+  - file: implementation_task_list.md
+    required: true
+    description: 實作任務清單（資料擷取模組、分析模組、預測模型模組、API 層）
+  - file: unit_tests/
+    required: true
+    description: 單元測試（資料清洗、特徵工程、模型推論等）
+  - file: security_check_report.md
+    required: true
+    description: "🔒 安全檢核報告（Phase 3 強制）"
+  - file: security_scan_report.json
+    required: false
+    description: "🔒 靜態安全掃描報告"

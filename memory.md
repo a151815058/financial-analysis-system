@@ -1,0 +1,64 @@
+# 專案記憶檔 (memory.md)
+
+## 專案概覽
+
+- **專案名稱**：各公司各季度財務分析與股價預測系統
+- **建立日期**：2026-07-14
+- **框架版本**：SSDLC-Skill（來源：SSDLC-Skill-main）
+- **初始設定**：
+  - 資安防護基準：中級 (medium) — 已啟用
+  - 引導式協作 (@guide)：已啟用，目前於 Phase 01 關卡 1
+  - 階段 IO 檔案管理 (@io)：已啟用
+
+## 對話歷程
+
+### 2026-07-14 — Session 1：專案初始化
+
+- 使用者要求執行 `@init` 建立「各公司各季度財務分析與股價預測系統」專案。
+- 已確認：專案路徑 `./financial-analysis-system`、資安等級 medium、引導式協作啟用、IO 管理啟用。
+- AI 代理已建立完整 SSDLC 目錄結構（00~06 階段 + 根目錄控制檔案）。
+- 下一步：進入 Phase 01 引導式協作關卡 1（目標確認），釐清財務分析與股價預測的具體需求範圍。
+
+### 2026-07-14 — Session 1（續）：Phase 01 需求釐清與完成
+
+- 使用者提供財務分析範圍（台股+美股，7 項指標）、預測方法（財報因子統計模型+時間序列模型）、資料來源（MOPS）。
+- Planner 執行缺口拷問，發現 3 項缺口並經使用者確認：
+  1. 美股資料來源（MOPS 不涵蓋美股）→ 確定改用 SEC EDGAR + 市場資料 API。
+  2. 預測輸出格式未定義 → 確定為「未來一週漲跌方向 + 幅度區間」。
+  3. 系統呈現形式未定義 → 確定為後端分析服務 + API（無網頁 UI）。
+- Generator 產出：`formal_requirements.md`（REQ_001~REQ_009）、`security_requirements.md`（REQ_SEC_001，中級資安）、`requirement_tracker.md`、`specs/features/requirements.feature`（9 個 Gherkin 場景）、`specs/executable_spec.yaml`（phase_01_planning 區塊）。
+- Evaluator 審查通過，綜合評分 92 分（coverage 95 / clarity 92 / traceability 95 / format 95 / security_coverage 90）。
+- 全域 Agent 已同步：`traceability_matrix.md`、`system_specification.md` 更新至 v0.2；建立 `baseline/phase-01/baseline-v1/`（含 MANIFEST.md 與 SHA-256）；`phase_gates.json` 更新（01 completed，02 in_progress）。
+- 留下 3 項待確認事項（OI-001 市場資料 API 供應商、OI-002 美股欄位對應、OI-003 預測幅度區間粒度），將於 Phase 02/03 確認。
+- 下一步：開始 Phase 02 系統設計（資料庫 Schema、ER 圖、API 規格、UML 圖），不需 UI 雛型。
+
+### 2026-07-14 — Session 1（續）：Phase 02 系統設計完成
+
+- Planner 確認 OI-001：美股市場資料 API 供應商選定 Alpha Vantage。
+- Generator 產出：`db_schema.sql`（7 張表）、`er_diagram.md`、`api_spec.md`（7 端點，API Key 認證）、`usecase_diagram.md`、`activity_diagram.md`（每週預測流程 + 回測流程）、`sequence_diagram.md`（API 查詢 + 排程觸發預測流程）、`threat_model.md`（STRIDE，涵蓋構面 1/4/6）。
+- 依使用者先前確認（後端服務 + API，無網頁 UI），本階段未產出 `ui_prototype.html`，屬 Planner 依系統類型判定之非必要產出，非缺漏。
+- Evaluator 審查通過，綜合評分 94 分（coverage 96 / clarity 93 / traceability 94 / format 95 / security_coverage 92）。
+- 全域 Agent 已同步：`traceability_matrix.md`、`system_specification.md` 更新至 v0.3；建立 `baseline/phase-02/baseline-v1/`；`phase_gates.json` 更新（02 completed，03 in_progress）。
+- OI-002（美股 XBRL 欄位對應）、OI-003（預測幅度區間粒度）延續帶入 Phase 03。
+- 下一步：開始 Phase 03 開發與編碼（依建議技術棧 Python + FastAPI + PostgreSQL + statsmodels/scikit-learn + Prophet/ARIMA 進行實作任務拆解）。
+
+## 關鍵決策記錄
+
+| 時間 | 決策 | 理由 |
+| :--- | :--- | :--- |
+| 2026-07-14 | 採中級資安防護基準 | 系統涉及公司財務資料與預測模型，需高於一般系統的存取控制與稽核要求 |
+| 2026-07-14 | 啟用引導式協作 | 使用者為初次使用本框架，適合以 5 關卡對話式引導完成階段設定 |
+| 2026-07-14 | 啟用 IO 檔案管理 | 使用者選擇嚴格勾稽各階段輸入輸出檔案交接 |
+| 2026-07-14 | 美股財報改用 SEC EDGAR、股價改用市場資料 API | MOPS 公開資訊觀測站僅涵蓋台股，無法取得美股資料 |
+| 2026-07-14 | 預測輸出定為「方向 + 幅度區間」而非絕對股價 | 對財報因子（季頻）與時間序列（日頻）混合訊號而言，區間預測較穩健，也保留更多資訊量 |
+| 2026-07-14 | 系統定位為後端服務 + API，不做網頁 UI | 使用者明確表示僅需分析/預測服務，Phase 02 可省略 UI 雛型設計 |
+| 2026-07-14 | 美股市場資料 API 選定 Alpha Vantage | 免費層級可用、支援股價與基本財務指標，適合 MVP 階段（速率限制列為已知限制，Phase 03 排程需考量） |
+
+## 當前狀態
+
+- 目前階段：Phase 03（開發與編碼）— `in_progress`（Phase 01、02 已完成並各自建立 Baseline v1）
+- 下一步建議：進行 Phase 03 實作任務拆解（資料擷取模組、正規化模組、財報因子模型、時間序列模型、融合模組、API 層、排程），並處理 OI-002（美股 XBRL 欄位對應）、OI-003（預測幅度區間粒度）。
+
+## Git 版本歷程
+
+_(尚未初始化 Git 倉庫)_

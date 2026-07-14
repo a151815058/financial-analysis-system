@@ -1,0 +1,48 @@
+{
+  "project": "financial-analysis-system",
+  "current_role": "developer",
+  "last_updated": "2026-07-14T02:00:00",
+  "phases": {
+    "01_planning_and_analysis": {
+      "status": "completed",
+      "baseline": "baseline/phase-01/baseline-v1/",
+      "evaluator_score": { "coverage": 95, "clarity": 92, "traceability": 95, "format": 95, "security_coverage": 90 },
+      "completed_at": "2026-07-14T01:00:00",
+      "ssot_integrity_checked": true
+    },
+    "02_system_design": {
+      "status": "completed",
+      "baseline": "baseline/phase-02/baseline-v1/",
+      "evaluator_score": { "coverage": 96, "clarity": 93, "traceability": 94, "format": 95, "security_coverage": 92 },
+      "completed_at": "2026-07-14T02:00:00",
+      "ssot_integrity_checked": true
+    },
+    "03_implementation_and_coding": { "status": "in_progress", "baseline": null, "completed_at": null },
+    "04_testing": { "status": "locked", "baseline": null, "completed_at": null },
+    "05_deployment": { "status": "locked", "baseline": null, "completed_at": null },
+    "06_maintenance": { "status": "locked", "baseline": null, "completed_at": null }
+  },
+  "phase_baseline_enabled": true,
+  "security_baseline": {
+    "skill_path": "../external-resources/Security-Principles",
+    "description": "資通系統防護基準（中級）— 已於 @init 時導入，涵蓋財務資料存取控制、稽核日誌與通訊保護等構面",
+    "enabled": true,
+    "level": "medium",
+    "initialized_at": "2026-07-14",
+    "skill": "Security-Principles",
+    "min_security_score": 70,
+    "domains": [1, 2, 3, 4, 5, 6, 7],
+    "last_checks": {}
+  },
+  "io_management": {
+    "enabled": true
+  },
+  "guided_workflow": {
+    "enabled": true,
+    "current_phase": "03_implementation_and_coding",
+    "current_step": 1,
+    "completed_steps": ["01:1_目標確認", "01:2_輸入確認", "01:3_skill選取(略)", "01:4_輸出定義", "01:5_執行完成", "02:1_目標確認(OI-001確認)", "02:2_輸入確認", "02:3_skill選取(略)", "02:4_輸出定義", "02:5_執行完成"],
+    "started_at": "2026-07-14T00:00:00",
+    "last_active": "2026-07-14T02:00:00"
+  }
+}

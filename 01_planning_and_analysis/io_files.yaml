@@ -1,0 +1,31 @@
+# Phase 01 IO 檔案合約（@io set 產生）
+phase: 01_planning_and_analysis
+inputs:
+  - file: user_requirement_raw.md
+    required: true
+    description: 使用者原始需求描述（各公司財報範圍、預測標的、資料來源）
+  - file: financial_data_sample.csv
+    required: false
+    description: 財務資料範例（供需求釐清時參考欄位結構，如季報 EPS/營收/毛利率）
+outputs:
+  - file: formal_requirements.md
+    required: true
+    description: 正規化需求規格書（功能清單、資料模型、技術棧）
+  - file: system_specification.md
+    required: true
+    from_phase: root
+    description: 人可讀 SRS 系統規格書
+  - file: executable_spec.yaml
+    required: true
+    from_phase: root
+    description: AI 可執行規格 SSOT
+  - file: requirements.feature
+    required: true
+    description: Gherkin BDD 可執行規格
+  - file: traceability_matrix.md
+    required: true
+    from_phase: root
+    description: 全域需求追溯矩陣
+  - file: security_requirements.md
+    required: true
+    description: "🔒 安全需求規格（CIA 等級定義、財務資料保護、威脅建模範圍）"

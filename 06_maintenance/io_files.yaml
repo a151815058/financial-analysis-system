@@ -1,0 +1,23 @@
+# Phase 06 IO 檔案合約（@io set 產生）
+phase: 06_maintenance
+inputs:
+  - file: deployment_config.md
+    required: true
+    from_phase: 05_deployment
+    description: 部署組態
+outputs:
+  - file: monitoring_dashboard.md
+    required: false
+    description: 監控儀表板設定（模型預測準確率追蹤、資料擷取排程健康度）
+  - file: hotfix_log.md
+    required: true
+    description: 熱修補歷程
+  - file: regression_test_report.md
+    required: true
+    description: 回歸測試報告
+  - file: security_trend.md
+    required: true
+    description: "🔒 安全趨勢報告"
+  - file: vulnerability_advisory.md
+    required: false
+    description: "🔒 漏洞通報記錄"

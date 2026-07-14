@@ -1,0 +1,23 @@
+# Phase 05 IO 檔案合約（@io set 產生）
+phase: 05_deployment
+inputs:
+  - file: test_results.md
+    required: true
+    from_phase: 04_testing
+    description: 測試結果報告（須全數通過方可部署）
+outputs:
+  - file: build_manifest.json
+    required: true
+    description: 建置產物清單（含 SHA-256 雜湊值）
+  - file: deployment_config.md
+    required: true
+    description: 部署組態（排程任務：季度財報擷取排程、模型重訓排程）
+  - file: sbom.json
+    required: true
+    description: "🔒 軟體物料清單 SBOM"
+  - file: .env.example
+    required: true
+    description: "🔒 環境變數範本（不含真實密鑰）"
+  - file: security_deployment_checklist.md
+    required: true
+    description: "🔒 部署安全檢核清單"

@@ -1,0 +1,34 @@
+# 敏感檔
+.env
+*.key
+credentials.json
+credentials*.json
+token.txt
+secrets.json
+
+# 本地資料庫
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node.js（若未來擴充前端）
+node_modules/
+
+# OS / 編輯器
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/*
+!.vscode/tasks.json
+.idea/
+
+# 編輯產物 / 暫存
+*.tmp
+*.bak

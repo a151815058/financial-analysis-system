@@ -1,0 +1,105 @@
+# 系統功能規格說明書 (Living Documentation)
+
+> **專案名稱**：各公司各季度財務分析與股價預測系統
+> **文件版本**：v0.3（Phase 02 完成）
+> **最後更新**：2026-07-14
+
+## 【第一部分：人類閱讀區】
+
+### 一、 系統概述
+
+本系統彙整台股與美股上市（櫃）公司之季度財務資料，計算 7 項核心財務指標（營收、EPS、毛利率、淨利率、負債比、現金流、本益比），並結合「財報因子統計模型」與「股價時間序列模型」進行融合預測，產出每週股價漲跌方向與幅度區間，供 API 查詢使用。系統定位為後端分析服務，不含網頁儀表板；輸出僅供分析參考，非投資建議。
+
+### 二、 整體描述
+
+#### 產品功能摘要
+
+| 功能編號 | 模組名稱 | 功能說明 | 當前狀態 |
+| :--- | :--- | :--- | :--- |
+| FEAT_001 | 台股財務資料擷取 | 自 MOPS 擷取台股季度財報並正規化 | `[規格完成]` |
+| FEAT_002 | 美股財務資料擷取 | 自 SEC EDGAR + 市場資料 API 擷取美股財報與股價 | `[規格完成]` |
+| FEAT_003 | 跨市場財務指標正規化 | 統一資料模型、幣別標註、版本化 | `[規格完成]` |
+| FEAT_004 | 財報因子統計模型 | 財務指標驅動之漲跌方向/幅度區間預測 | `[規格完成]` |
+| FEAT_005 | 股價時間序列模型 | 短期價格動能預測 | `[規格完成]` |
+| FEAT_006 | 雙模型融合 | 財報模型 + 時間序列模型 Ensemble | `[規格完成]` |
+| FEAT_007 | 預測結果查詢 API | 財務指標與預測結果查詢端點 | `[規格完成]` |
+| FEAT_008 | 排程機制 | 財報/股價/模型定期更新排程 | `[規格完成]` |
+| FEAT_009 | 準確率回測 | 預測結果歷史準確率追蹤 | `[規格完成]` |
+
+### 三、 具體需求
+
+#### 功能需求詳細說明
+
+完整功能需求、驗收條件詳見 `01_planning_and_analysis/outputs/formal_requirements.md`（REQ_001~REQ_009）與安全需求 `security_requirements.md`（REQ_SEC_001）。摘要：
+
+1. **資料擷取**：台股經 MOPS、美股經 SEC EDGAR（10-Q/10-K）+ 市場資料 API 擷取，需支援批次、重試、版本化。
+2. **預測建模**：財報因子統計模型與股價時間序列模型雙軌並行，融合輸出「方向 + 幅度區間 + 信心分數」。
+3. **服務化**：以 API 對外提供財務指標查詢與預測結果查詢，具備身分驗證。
+4. **維運**：排程自動更新、失敗通知、預測準確率回測（近 12 週滾動視窗）。
+
+#### 外部介面需求（API）
+
+認證方式：API Key（`X-API-Key` Header），scope 分為 `read` / `admin`。完整規格見 `02_system_design/outputs/api_spec.md`。
+
+| 端點 | 方法 | 說明 |
+| :--- | :--- | :--- |
+| `/api/v1/companies` | GET | 查詢公司清單 |
+| `/api/v1/companies/{ticker}/financials` | GET | 查詢財務指標歷史 |
+| `/api/v1/companies/{ticker}/prices` | GET | 查詢股價歷史 |
+| `/api/v1/companies/{ticker}/predictions/latest` | GET | 查詢最新一週預測 |
+| `/api/v1/companies/{ticker}/predictions/history` | GET | 查詢歷史預測 |
+| `/api/v1/companies/{ticker}/backtest` | GET | 查詢回測準確率 |
+| `/api/v1/admin/ingest/trigger` | POST | 手動觸發資料擷取/模型更新（需 admin） |
+
+#### 資料庫需求
+
+7 張資料表，詳細 DDL 見 `02_system_design/outputs/db_schema.sql`，ER 圖見 `02_system_design/outputs/er_diagram.md`：`companies`、`financial_reports`、`price_history`、`predictions`、`prediction_backtests`、`api_keys`、`audit_logs`。
+
+#### 技術架構需求
+_(待 Phase 03 完成後自動同步；Phase 01 建議技術棧：Python + FastAPI + PostgreSQL + statsmodels/scikit-learn + Prophet/ARIMA + APScheduler，詳見 `formal_requirements.md` 第四節)_
+
+### 四、 UML 系統模型
+
+- 用例圖：`02_system_design/outputs/usecase_diagram.md`（API 使用者 / 系統管理員 / 排程器三類角色）
+- 活動圖：`02_system_design/outputs/activity_diagram.md`（每週預測產出主流程、回測流程）
+- 時序圖：`02_system_design/outputs/sequence_diagram.md`（API 查詢流程、排程觸發預測產出流程）
+- ER 圖：`02_system_design/outputs/er_diagram.md`
+
+> 本系統定位為後端分析服務 + API，經使用者確認不需網頁儀表板，故無 UI 雛型產出。
+
+### 五、 驗收標準
+_(待 Phase 04/05 完成後自動同步：pytest / Playwright 通過率、SHA-256 驗證結果)_
+
+### 六、 附錄
+
+#### 附錄 A：維運需求
+_(待 Phase 06 完成後自動同步)_
+
+#### 附錄 B：變更紀錄
+
+| 日期 | 階段 | 版號 | 摘要 |
+| :--- | :--- | :--- | :--- |
+| 2026-07-14 | 00 (@init) | v0.1 | 專案初始化，建立標準 SSDLC 目錄結構，啟用中級資安防護基準、引導式協作與 IO 管理 |
+| 2026-07-14 | 01（規劃與需求分析） | v0.2 | 完成需求釐清（含美股資料來源缺口拷問），產出 9 項功能需求 + 1 項安全需求；Evaluator 通過（92 分）；建立 Phase 01 Baseline；Phase 02 解鎖 |
+| 2026-07-14 | 02（系統設計） | v0.3 | 確認 OI-001（Alpha Vantage）；產出 DB Schema（7 表）、API 規格（7 端點）、用例圖、活動圖、時序圖、威脅建模；不含 UI 雛型；Evaluator 通過（94 分）；建立 Phase 02 Baseline；Phase 03 解鎖 |
+
+## 【第二部分：機器執行區】
+
+> 以下 Gherkin 場景摘自 `specs/features/requirements.feature`，狀態將於各階段測試通過後回寫。
+
+```gherkin
+# language: zh-TW
+功能: 台股/美股財務資料擷取與正規化
+
+  場景: REQ_001 台股財務資料擷取 [未通過]
+    假設 已指定台股股票代號清單
+    當 系統向公開資訊觀測站（MOPS）擷取最近 N 季財報
+    那麼 系統應取得營收、EPS、毛利率、淨利率、負債比、現金流、本益比等資料
+
+  場景: REQ_004 財報因子統計模型預測 [未通過]
+    假設 已取得正規化後的財務指標
+    當 系統執行財報因子統計模型
+    那麼 應輸出未來一週漲跌方向與幅度區間與信心分數
+```
+
+> 完整場景清單（共 9 個）請見 `specs/features/requirements.feature`。

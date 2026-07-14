@@ -1,0 +1,36 @@
+# Phase 02 IO 檔案合約（@io set 產生）
+phase: 02_system_design
+inputs:
+  - file: formal_requirements.md
+    required: true
+    from_phase: 01_planning_and_analysis
+    description: 正規化需求規格書
+  - file: security_requirements.md
+    required: true
+    from_phase: 01_planning_and_analysis
+    description: 安全需求規格
+outputs:
+  - file: db_schema.sql
+    required: true
+    description: 財務資料/預測模型結果資料庫 Schema（DDL）
+  - file: er_diagram.md
+    required: true
+    description: ER 圖（Mermaid）
+  - file: api_spec.md
+    required: true
+    description: API 規格（財報查詢、分析結果、預測結果端點）
+  - file: ui_prototype.html
+    required: false
+    description: 分析報表/儀表板 UI 雛型（若含前端展示介面）
+  - file: usecase_diagram.md
+    required: true
+    description: 用例圖（Mermaid）
+  - file: activity_diagram.md
+    required: true
+    description: 活動圖（Mermaid，如：資料擷取 → 分析 → 預測 → 報表產出流程）
+  - file: sequence_diagram.md
+    required: true
+    description: 時序圖（Mermaid）
+  - file: threat_model.md
+    required: true
+    description: "🔒 威脅建模（財務資料外洩、模型輸出竄改等風險）"
