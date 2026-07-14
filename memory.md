@@ -66,6 +66,19 @@
 - 已於 `phase-03-implementation` 分支提交 Git commit。
 - 下一步：Phase 04 測試驗證（現有 49 項單元測試已於 Phase 03 完成，Phase 04 聚焦於整合測試報告彙整、覆蓋率分析，以及視需要之滲透測試規劃）。
 
+### 2026-07-14 — Session 1（續）：Phase 04 測試驗證完成
+
+- Planner 判定系統為純後端 API（無 UI），Playwright 不適用，改以「系統整合測試」（真實 HTTP，取代傳統 UI 測試軌）作為第二測試層。
+- Generator 撰寫 `04_testing/outputs/test_api.py`：實際啟動 `uvicorn` 子行程 + 真實 SQLite 檔案 + 真實 HTTP 呼叫，9 項測試涵蓋健康檢查、認證繞過、CRUD 查詢、admin 權限、404 情境，全數通過。
+- 執行覆蓋率分析（pytest-cov）：合併 Phase 03 的 49 項 + 本階段 9 項共 58 項測試，`app/` 整體覆蓋率 92.5%。
+- 執行 DAST 等效動態測試（本環境無 Java，OWASP ZAP 不可用）：針對真實運行中的服務手動測試 HTTP 安全標頭、SQL Injection-like/XSS-like payload、輸入驗證邊界（負數/超量分頁參數）、錯誤資訊洩漏，核心攻擊面無 Critical/High 風險，僅 2 項中低/低風險（缺 HTTP 安全標頭、Server 標頭洩漏）排入 Phase 05。
+- 撰寫 `run_tests.bat` 並**實際執行測試**（非僅撰寫）：首次執行發現 2 項腳本邏輯錯誤（`popd` 後相對路徑深度算錯、`if exist` 判斷條件寫反成檢查目的地而非來源），修復後重新執行確認 58 passed。過程中也發現此環境呼叫 `cmd.exe /c` 需要 `.\` 前綴否則報「不是內部或外部命令」，並發現 UTF-8 BOM 批次檔若非 CRLF 換行會被 cmd.exe 嚴重誤解析（逐字拆散），已修正為 CRLF + BOM。
+- 發現並修復 1 項 Trivial 缺陷（BUG_001）：測試出現 `ResourceWarning: unclosed database`，根因為 `db_session` fixture 與 `app/main.py` lifespan 使用的模組級預設 engine 皆未於測試結束時 `dispose()`；已於 `conftest.py` 修復並補上驗證。
+- Evaluator 審查通過，加權總分 98（requirement_coverage 97 / dual_track_pass_rate 100 / bug_tracking 100 / regression_strategy 90 / security_testing 100）。
+- 全域 Agent 已同步：`traceability_matrix.md`、`system_specification.md` 更新至 v0.5；建立 `baseline/phase-04/baseline-v1/`；順手修正 `baseline/phase-03/baseline-v1/MANIFEST_hashes.txt` 的自我參照雜湊錯誤（先前產生時檔案重導向已建立空檔導致被 find 一併掃入）；`phase_gates.json` 更新（04 completed，05 in_progress）。
+- 已知限制記錄：REQ_008 的 admin 觸發端點目前僅記錄稽核日誌，尚未實際串接資料擷取/推論管線（Phase 03 任務邊界內的合理範圍，非缺陷，已於 `test_results.md` 第五節說明）。
+- 下一步：Phase 05 部署發布（PostgreSQL 正式資料庫決策、Docker/系統服務化、環境變數與密鑰管理、SBOM、HTTPS/反向代理設定，並回頭補齊 Phase 04 DAST 報告中列出的 HTTP 安全標頭）。
+
 ## 關鍵決策記錄
 
 | 時間 | 決策 | 理由 |
@@ -80,11 +93,13 @@
 | 2026-07-14 | 預測幅度區間改採統計分位數迴歸，不用固定級距 | 依實際資料分布給出區間寬度，較具統計依據；解決 Phase 01 遺留的 OI-003 |
 | 2026-07-14 | 美股財報欄位對應採「備援 tag 清單」設計 | 不同公司/年度可能用不同但語意相同的 us-gaap 標籤，備援清單避免單一標籤缺失即擷取失敗；解決 OI-002 |
 | 2026-07-14 | requirements.txt 明確釘選 scipy==1.17.1 | scipy 1.18.0 官方 cp314 Windows wheel 之 `scipy.signal` 編譯擴充損壞，1.17.1 驗證可正常運作 |
+| 2026-07-14 | Phase 04 不寫 Playwright UI 測試，改用真實 HTTP 系統整合測試 | 系統無網頁 UI，Playwright 不適用；改以啟動真實服務進行端到端 HTTP 驗證，達到等效的「非 mock、真實環境」驗證目的 |
+| 2026-07-14 | DAST 以手動腳本取代 OWASP ZAP | 本環境無 Java，ZAP 無法安裝；改以針對相同攻擊面（認證/注入/輸入驗證/錯誤洩漏）手動測試，並在報告中明確註記涵蓋廣度不如 ZAP，非隱瞞限制 |
 
 ## 當前狀態
 
-- 目前階段：Phase 04（測試驗證）— `in_progress`（Phase 01~03 已完成並各自建立 Baseline v1）
-- 下一步建議：Phase 04 聚焦於彙整已有的 49 項單元測試結果為正式測試報告、執行覆蓋率分析（coverage.py）、視需要規劃 API 整合測試（httpx AsyncClient 對真實 SQLite/PostgreSQL）與 Phase 03 資安檢核提到的滲透測試（項次57，目前⬚未涵蓋）。
+- 目前階段：Phase 05（部署發布）— `in_progress`（Phase 01~04 已完成並各自建立 Baseline v1）
+- 下一步建議：Phase 05 決定正式資料庫（PostgreSQL）與部署方式（Docker 或系統服務）、環境變數/密鑰管理、SBOM 產出、HTTPS 與反向代理設定（同時補上 Phase 04 DAST 報告列出的 HTTP 安全標頭）。
 
 ## Git 版本歷程
 

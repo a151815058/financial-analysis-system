@@ -1,0 +1,10 @@
+4da22fa89949977ebaa5f7e83eb5badeca3b1ff1ecdeafcc509ad772133f5f29 *baseline/phase-04/baseline-v1/bug/bug_tracker.md
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 *baseline/phase-04/baseline-v1/outputs/.gitkeep
+11c1a60ca38e55343496e11fb9b47f8abc31562a1d4aefe62fed4ffbd3447dee *baseline/phase-04/baseline-v1/outputs/combined_test_results.xml
+a4cf023b30252c5c5e8423e57ca8e3580f4e94e8ce026abe75e462514c4ac34b *baseline/phase-04/baseline-v1/outputs/coverage.json
+5e53e166cd1a4faf716a7de214515cb49cec53f49e99f027994d47007b2fe085 *baseline/phase-04/baseline-v1/outputs/dast_report.md
+6eae075f1f1d8507a08826d22392f0fdb32c121a7019589c2f5e36e40cf609ef *baseline/phase-04/baseline-v1/outputs/run_tests.bat
+b7e5685d0c3187a27fc0cd934fa3b28f9ded1584c8dcc1fc4d7bd12357c64525 *baseline/phase-04/baseline-v1/outputs/test_api.py
+ac0d00beb22d6e65812e905e31040da51a60074ec09cadfc4af5a79104a1c638 *baseline/phase-04/baseline-v1/outputs/test_results.md
+10a2793b0392e5374f735fbae3b2676983e79a9578cea15e8dc9fa8a475e56ff *baseline/phase-04/baseline-v1/outputs/zap_report.html
+f9077dd558e315fa9808eda6714ac37d16dfe93eb9cc1ba16ad4e84fce3cab41 *baseline/phase-04/baseline-v1/SKILL.md

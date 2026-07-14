@@ -15,3 +15,7 @@
 | 2026-07-14T03:00:00 | 03_implementation_and_coding | Generator | 實作 app/ 全部模組、49 項單元測試；解決 OI-002/OI-003；修復環境問題（scipy 1.18.0 cp314 Windows wheel 損壞，改用 1.17.1） | 成功，49/49 測試通過 |
 | 2026-07-14T03:15:00 | 03_implementation_and_coding | Evaluator | 代碼評審 + Lint（ruff）+ SAST（bandit）+ 依賴掃描（pip-audit）+ 資安檢核 | 發現 1 項 A 類問題（audit_logs 缺來源IP），Generator 當場修復並重新驗證通過，綜合評分 97 |
 | 2026-07-14T03:30:00 | 全域 Agent | Global Agent | 更新 traceability_matrix.md、system_specification.md；回補 db_schema.sql（source_ip 欄位）；建立 Phase 03 Baseline v1（含服務啟動 HTTP 200 驗證）；釋放 Phase 04 權限 | 成功 |
+| 2026-07-14T03:45:00 | 04_testing | Planner | 規劃測試範圍：判定系統為純後端 API（無 UI），Playwright 不適用；規劃新增系統整合測試層（真實 HTTP）+ DAST 等效測試 | 成功 |
+| 2026-07-14T04:00:00 | 04_testing | Generator | 撰寫並執行 9 項系統整合測試（真實 uvicorn 子行程 + HTTP）；執行覆蓋率分析（92.5%）；執行 DAST 等效手動測試（HTTP 標頭、注入、輸入驗證邊界）；撰寫並實測 run_tests.bat（發現並修復 2 項腳本邏輯錯誤） | 成功，58/58 測試通過 |
+| 2026-07-14T04:10:00 | 04_testing | Evaluator | 需求測試覆蓋率 + 雙軌測試通過率 + Bug追蹤完整性 + 回歸策略 + 安全測試審查 | 發現 1 項 Trivial 缺陷（ResourceWarning 未釋放連線），Generator 當場修復，綜合評分 98 |
+| 2026-07-14T04:15:00 | 全域 Agent | Global Agent | 更新 traceability_matrix.md、system_specification.md；建立 Phase 04 Baseline v1；修正 Phase 03 Baseline MANIFEST_hashes.txt 自我參照錯誤；釋放 Phase 05 權限 | 成功 |

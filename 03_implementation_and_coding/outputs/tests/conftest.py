@@ -6,10 +6,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app import db_session as db_session_module
 from app.auth import hash_api_key
 from app.db_models import ApiKey, Base
 from app.db_session import get_session
 from app.main import app
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _dispose_default_engine():
+    """app.main 啟動時會透過 lifespan 呼叫 init_db()，使用 app/db_session.py 的預設
+    模組級 engine（非測試用 in-memory engine）。測試全部結束後釋放其連線，避免
+    ResourceWarning: unclosed database。"""
+    yield
+    db_session_module.engine.dispose()
 
 
 @pytest.fixture()
@@ -26,6 +36,7 @@ def db_session():
         yield session
     finally:
         session.close()
+        engine.dispose()
 
 
 @pytest.fixture()

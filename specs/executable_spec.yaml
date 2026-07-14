@@ -7,10 +7,10 @@
 
 project:
   name: "各公司各季度財務分析與股價預測系統"
-  version: "0.4.0"
+  version: "0.5.0"
   created: "2026-07-14"
-  last_updated: "2026-07-14T03:30:00"
-  current_phase: "04_testing"
+  last_updated: "2026-07-14T04:15:00"
+  current_phase: "05_deployment"
   description: "彙整台股與美股各公司季度財務資料，計算 7 項核心財務指標，結合財報因子統計模型與股價時間序列模型，產出每週漲跌方向與幅度區間預測，並提供查詢 API。"
 
 security_baseline:
@@ -197,13 +197,35 @@ phase_03_implementation:
     errors: { type_a: [], type_b: [] }
 
 phase_04_testing:
-  status: pending
-  baseline: null
-  test_results: {}
-  bugs: []
+  status: completed
+  baseline: "baseline/phase-04/baseline-v1/"
+  test_results:
+    total: 58
+    passed: 58
+    failed: 0
+    coverage_pct: 92.5
+    layers:
+      - { name: "unit_integration (Phase 03 in-process TestClient)", count: 49 }
+      - { name: "system integration (live uvicorn + real HTTP)", count: 9 }
+    report: "04_testing/outputs/test_results.md"
+    junit_xml: "04_testing/outputs/combined_test_results.xml"
+  security_testing:
+    dast_report: "04_testing/outputs/dast_report.md"
+    zap_available: false
+    zap_note: "OWASP ZAP 不可用（本環境無 Java），改以手動腳本執行等效動態測試"
+    findings: "無 Critical/High 風險；2 項中低/低風險（HTTP 安全標頭、Server 標頭洩漏）已排入 Phase 05"
+  bugs:
+    - id: "BUG_001"
+      severity: "Trivial"
+      description: "測試執行時出現 ResourceWarning: unclosed database（SQLite engine 未 dispose）"
+      status: "fixed"
+      fixed_at: "2026-07-14"
+  known_limitations:
+    - "REQ_008：admin 觸發端點目前僅記錄稽核日誌，尚未實際串接資料擷取/推論管線（Phase 03 任務範圍邊界，非缺陷）"
   evaluator:
-    passed: false
-    scores: {}
+    passed: true
+    scores: { requirement_coverage: 97, dual_track_pass_rate: 100, bug_tracking: 100, regression_strategy: 90, security_testing: 100 }
+    weighted_total: 98
     errors: { type_a: [], type_b: [] }
 
 phase_05_deployment:
@@ -245,3 +267,7 @@ change_log:
     phase: "03 (開發與編碼)"
     version: "0.4.0"
     summary: "完成 13 項任務實作（FastAPI + SQLAlchemy + scikit-learn/statsmodels），解決 OI-002（SEC EDGAR 標籤備援）、OI-003（分位數迴歸估區間）；49 項單元測試全數通過；ruff/bandit/pip-audit 全數乾淨；安全檢核發現稽核日誌缺來源IP並當場修復；Evaluator 通過（97 分），建立 Phase 03 Baseline，Phase 04 解鎖"
+  - date: "2026-07-14"
+    phase: "04 (測試驗證)"
+    version: "0.5.0"
+    summary: "新增 9 項系統整合測試（真實 uvicorn 服務 + 實際 HTTP），結合 Phase 03 單元測試共 58 項全數通過，程式碼覆蓋率 92.5%；執行 DAST 等效動態測試（ZAP 不可用，改手動腳本），核心攻擊面無 Critical/High 風險；發現並修復 1 項 Trivial 缺陷（BUG_001）；Evaluator 通過（98 分），建立 Phase 04 Baseline，Phase 05 解鎖"
