@@ -1,7 +1,7 @@
 {
   "project": "financial-analysis-system",
   "current_role": "developer",
-  "last_updated": "2026-07-14T04:45:00",
+  "last_updated": "2026-07-14T05:15:00",
   "phases": {
     "01_planning_and_analysis": {
       "status": "completed",
@@ -42,6 +42,16 @@
     },
     "06_maintenance": { "status": "in_progress", "baseline": null, "completed_at": null }
   },
+  "out_of_band_additions": [
+    {
+      "id": "REQ_010",
+      "name": "內部分析儀表板（/dashboard）",
+      "added_at": "2026-07-14T05:15:00",
+      "note": "使用者要求暫緩 Phase 06，先追加此功能。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。詳見 traceability_matrix.md 與 memory.md。",
+      "tests_added": 3,
+      "total_tests": 52
+    }
+  ],
   "phase_baseline_enabled": true,
   "security_baseline": {
     "skill_path": "../external-resources/Security-Principles",

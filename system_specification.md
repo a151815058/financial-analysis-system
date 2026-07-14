@@ -1,7 +1,7 @@
 # 系統功能規格說明書 (Living Documentation)
 
 > **專案名稱**：各公司各季度財務分析與股價預測系統
-> **文件版本**：v0.6（Phase 05 完成，含未驗證項目說明）
+> **文件版本**：v0.7（Phase 05 完成 + 內部分析儀表板追加）
 > **最後更新**：2026-07-14
 
 ## 【第一部分：人類閱讀區】
@@ -25,6 +25,7 @@
 | FEAT_007 | 預測結果查詢 API | 財務指標與預測結果查詢端點 | `[規格完成]` |
 | FEAT_008 | 排程機制 | 財報/股價/模型定期更新排程 | `[規格完成]` |
 | FEAT_009 | 準確率回測 | 預測結果歷史準確率追蹤 | `[規格完成]` |
+| FEAT_010 | 內部分析儀表板 | 文字+圖表視覺化查看財務指標/股價/預測/回測（`GET /dashboard`） | `[已實作並驗證]` |
 
 ### 三、 具體需求
 
@@ -119,6 +120,17 @@ _(SHA-256 驗證結果待 Phase 05 部署完成後同步)_
 #### 附錄 B：維運需求
 _(待 Phase 06 完成後自動同步)_
 
+#### 附錄 B-1：內部分析儀表板（FEAT_010，Phase 05 之後追加）
+
+| 項目 | 內容 |
+| :--- | :--- |
+| 路由 | `GET /dashboard`（頁面）、`GET /static/dashboard.{css,js}`（資源） |
+| 技術 | 純 HTML+CSS+原生 JS，無 CDN 相依，SVG 圖表手刻實作 |
+| 內容 | 公司選擇器、財務指標歷史（表格+趨勢圖）、股價歷史趨勢圖、最新預測（KPI+股價圖區間疊加，含融合/財報因子/時間序列三模型明細）、回測準確率 |
+| 認證 | 頁面本身不需認證；頁內對 API 呼叫仍需 X-API-Key（使用者於畫面右上角輸入，存於瀏覽器 localStorage） |
+| 驗證方式 | Chrome headless + Puppeteer 實際驅動（輸入金鑰、切換公司、觸發 hover），螢幕截圖確認 light/dark mode、錯誤狀態、tooltip 互動皆正確；新增 `tests/test_dashboard.py`（3 項）；色板已跑過 dataviz skill 的 `validate_palette.js` 驗證（light/dark 皆 PASS） |
+| 追溯 | 詳見 `traceability_matrix.md` REQ_010 |
+
 #### 附錄 C：變更紀錄
 
 | 日期 | 階段 | 版號 | 摘要 |
@@ -129,6 +141,7 @@ _(待 Phase 06 完成後自動同步)_
 | 2026-07-14 | 03（開發與編碼） | v0.4 | 完成 13 項任務實作；解決 OI-002/OI-003；49 項單元測試全數通過；ruff/bandit/pip-audit 全數乾淨；安全檢核發現並當場修復稽核日誌缺來源IP；Evaluator 通過（97 分）；建立 Phase 03 Baseline；Phase 04 解鎖 |
 | 2026-07-14 | 04（測試驗證） | v0.5 | 新增 9 項系統整合測試（真實 HTTP），共 58 項測試全數通過，覆蓋率 92.5%；執行 DAST 等效測試無 Critical/High 風險；發現並修復 BUG_001；Evaluator 通過（98 分）；建立 Phase 04 Baseline；Phase 05 解鎖 |
 | 2026-07-14 | 05（部署發布） | v0.6 | 決策：PostgreSQL + Docker；產出 Dockerfile/docker-compose/nginx.conf/SBOM/build_manifest；因環境無 Docker 未實際建置驗證，如實記錄於評分（加權總分 66，部署安全子項 90% 通過安全關卡）；建立 Phase 05 Baseline；Phase 06 解鎖 |
+| 2026-07-14 | 05+（範疇外追加，Phase 06 前） | v0.7 | 新增 FEAT_010 內部分析儀表板（`/dashboard`），文字+圖表呈現財務指標/股價/預測/回測；Chrome headless+Puppeteer 實際驗證 light/dark mode 與互動；新增 3 項自動化測試（共 52 項）；未走完整 Phase 02 UI 設計流程，屬使用者要求之輕量追加 |
 
 ## 【第二部分：機器執行區】
 

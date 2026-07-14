@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.db_session import init_db
 from app.routers import admin, companies, predictions
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 DISCLAIMER = "本系統輸出僅供分析參考，不構成投資建議。過往預測準確率不代表未來績效。"
 
@@ -28,8 +33,15 @@ app = FastAPI(
 app.include_router(companies.router)
 app.include_router(predictions.router)
 app.include_router(admin.router)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/health", tags=["system"])
 def health() -> dict:
     return {"status": "ok", "disclaimer": DISCLAIMER}
+
+
+@app.get("/dashboard", tags=["system"])
+def dashboard() -> FileResponse:
+    """內部分析儀表板（文字 + 圖表），呼叫既有 API 端點呈現財務指標/股價/預測結果。"""
+    return FileResponse(STATIC_DIR / "dashboard.html")

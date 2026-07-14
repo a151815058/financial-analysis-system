@@ -91,6 +91,18 @@
 - 全域 Agent 已同步：`traceability_matrix.md`、`system_specification.md` 更新至 v0.6（新增附錄說明部署架構與驗證限制）；建立 `baseline/phase-05/baseline-v1/`（MANIFEST.md 明確列出「已驗證」vs「未能驗證」項目）；`phase_gates.json` 更新（05 completed 但標記 `deployment_verified_in_real_infra: false`，06 in_progress）。
 - 下一步：Phase 06 維運營運（日誌分析、監控指標、Hotfix 流程），並在使用者未來取得 Docker/PostgreSQL 環境後，回頭補做 Phase 05 的真實部署驗證（`security_deployment_checklist.md` 待辦清單第 5 項）。
 
+### 2026-07-14 — Session 1（續）：內部分析儀表板追加（範疇外，Phase 06 前）
+
+- 使用者要求暫緩 Phase 06，先規劃一個可視化介面查看 API 資料（文字 + 圖表）。
+- 詢問兩個技術決策：前端方式（選定：嵌入 FastAPI 的靜態儀表板 HTML+JS+手刻 SVG，不用 CDN/不另起服務）、儀表板內容（選定：公司選擇器+財務指標歷史、股價趨勢圖、最新預測含視覺化區間、回測準確率）。
+- 載入 `dataviz` skill 指引：色板選用 skill 參考色板，實際執行 `validate_palette.js` 驗證 light/dark 兩模式皆 PASS（含 CVD 分離度、對比度檢查）；圖表遵循 mark specs（2px 線、hairline 格線、crosshair+tooltip 互動層、多序列圖例+直接標籤）。
+- 新增檔案：`app/static/dashboard.{html,css,js}`，`app/main.py` 新增 `/dashboard` 路由與 `/static` 掛載。前端純呼叫既有 7 個 API 端點，不新增後端邏輯。
+- **股價圖預測區間視覺化**：股價歷史折線圖延伸一格「預測」，以扇形淡色區塊（融合模型）+ 三條色彩區分的垂直範圍柱（融合/財報因子/時間序列，各自 lower~upper）呈現，滑鼠 hover 可查看精確數值。
+- **實際瀏覽器驗證**（非僅程式碼審查）：本環境無法開啟真實使用者瀏覽器，改用系統既有 Chrome + Puppeteer（`puppeteer-core`，未下載額外 Chromium）以無頭模式實際驅動：輸入 API Key、切換公司、觸發圖表 hover，並擷取螢幕截圖確認。驗證項目：真實資料渲染（seed 台積電假資料）、light mode、dark mode（`prefers-color-scheme`）、無效金鑰錯誤狀態、tooltip 互動、回測無資料時的空狀態訊息，皆正確顯示。
+- 新增 `tests/test_dashboard.py`（3 項），累計自動化測試 52 項全數通過；ruff/bandit 皆乾淨。
+- **未走完整 SSDLC 順序**：正常應先在 Phase 02 補設計文件再到 Phase 03 實作，但此為使用者要求之範疇外輕量追加，未建立獨立 Baseline，僅於 `traceability_matrix.md`（新增 REQ_010）、`system_specification.md`（新增 FEAT_010 + 附錄 B-1）、`executable_spec.yaml`（新增 `feature_010_dashboard` 區塊）、`phase_gates.json`（新增 `out_of_band_additions` 區塊）中完整記錄，維持追溯完整性但不假裝走了完整 PDCA。
+- 下一步：使用者尚未決定是否/何時繼續 Phase 06（維護與營運）。
+
 ## 關鍵決策記錄
 
 | 時間 | 決策 | 理由 |
@@ -109,11 +121,13 @@
 | 2026-07-14 | DAST 以手動腳本取代 OWASP ZAP | 本環境無 Java，ZAP 無法安裝；改以針對相同攻擊面（認證/注入/輸入驗證/錯誤洩漏）手動測試，並在報告中明確註記涵蓋廣度不如 ZAP，非隱瞞限制 |
 | 2026-07-14 | Phase 05 部署評分如實給低分（66），不因「已盡力產出組態」而灌水 | 本機無 Docker/PostgreSQL，多數 Evaluator 審查項目（建置/啟動/連線/簽章）本質上無法驗證；誠實評分才能讓使用者清楚知道哪些東西是「寫好了」而非「驗證過」 |
 | 2026-07-14 | 框架腳本瑕疵發現後不直接修改框架，改記錄至待辦事項.md | 遵循框架「反饋走待辦」規則：developer 角色只能反饋，不能直接改框架根目錄檔案 |
+| 2026-07-14 | 儀表板前端不用 CDN、手刻 SVG 圖表 | 避免對外部資源的執行期相依（離線/內網部署也能運作），且能精確控制 dataviz skill 要求的 mark specs 與互動細節 |
+| 2026-07-14 | 用 Chrome headless + Puppeteer 實際截圖驗證 UI，而非只看程式碼 | 專案守則要求 UI 變更需在瀏覽器中實際測試；雖無真人瀏覽器，仍用系統既有 Chrome 驅動取得等效的真實渲染驗證，而非僅憑程式碼審查宣稱「應該可以動」 |
 
 ## 當前狀態
 
-- 目前階段：Phase 06（維護與營運）— `in_progress`（Phase 01~05 已完成並各自建立 Baseline v1；Phase 05 之容器化/實際部署驗證仍待真實 Docker 環境補做）
-- 下一步建議：Phase 06 規劃日誌分析與監控指標（對應 audit_logs 與 predictions/backtest 資料）、Hotfix 流程、回歸測試機制。同時提醒使用者：待取得 Docker/PostgreSQL 環境後，應回頭執行 `05_deployment/outputs/security_deployment_checklist.md` 待辦清單（TLS 憑證、備份排程、`docker compose up` 實際驗證）。
+- 目前階段：Phase 06（維護與營運）— `in_progress`（尚未開始；使用者暫緩，先完成範疇外的儀表板追加 REQ_010/FEAT_010）
+- 下一步：等候使用者決定是否/何時繼續 Phase 06。屆時規劃重點：日誌分析與監控指標（對應 audit_logs 與 predictions/backtest 資料）、Hotfix 流程、回歸測試機制。同時提醒使用者：待取得 Docker/PostgreSQL 環境後，應回頭執行 `05_deployment/outputs/security_deployment_checklist.md` 待辦清單（TLS 憑證、備份排程、`docker compose up` 實際驗證）。
 
 ## Git 版本歷程
 

@@ -15,6 +15,7 @@
 | REQ_008 | Planner 需求分析 | `formal_requirements.md` §REQ_008 | `api_spec.md`(POST /admin/ingest/trigger)<br>`activity_diagram.md` | `app/routers/admin.py`、`app/scheduler.py` | `tests/test_auth.py`、`test_api.py::test_admin_scope_can_trigger_ingest_real_http` | 排程隨 app 容器啟動（同進程 APScheduler） | - | `[不連貫警告]`（⚠️ 部分符合：管線串接待後續，見 test_results.md 五） |
 | REQ_009 | Planner 需求分析 | `formal_requirements.md` §REQ_009 | `db_schema.sql`(prediction_backtests)<br>`api_spec.md`(backtest) | `app/prediction/backtest.py`、`app/routers/predictions.py` | `tests/test_backtest.py`（5）、`tests/test_api_predictions.py` | 隨 app 容器部署 | - | `[不連貫警告]`（待 Phase 06） |
 | REQ_SEC_001 | 資安基準（中級） | `security_requirements.md` §五 | `db_schema.sql`(api_keys,audit_logs)<br>`threat_model.md` | `app/auth.py`、`app/audit.py`（含 source_ip 修復） | `tests/test_auth.py`（6）、`04_testing/outputs/dast_report.md`（DAST） | `nginx.conf`（TLS/安全標頭）、`security_deployment_checklist.md`、`signature_status.json` | - | `[不連貫警告]`（待 Phase 06） |
+| REQ_010 | 使用者口述（Phase 05 後追加，Phase 06 前） | 補於本文件 | 無獨立設計文件（沿用既有 API 端點，未另建 UI 雛型） | `app/static/dashboard.{html,css,js}`、`app/main.py`（`/dashboard`、`/static` 掛載） | `tests/test_dashboard.py`（3 項）+ 真實瀏覽器驗證（Chrome headless + Puppeteer，見下方說明） | 隨 app 容器一併部署（無獨立服務） | - | `[不連貫警告]`（範疇外追加，未走完整 05 前置審查） |
 
 > 說明：`[不連貫警告]` 為框架標準狀態標記，表示該需求尚未貫穿所有階段（已完成 Phase 01~05）。待 Phase 06 補齊後，狀態將更新為 `[已驗證]`。
 >
@@ -33,6 +34,18 @@
 | Bug ID | 嚴重度 | 狀態 |
 | :--- | :--- | :--- |
 | BUG_001 | Trivial | ✅ 已修復（測試資源清理，非功能性缺陷） |
+
+## REQ_010 補充說明：內部分析儀表板（Phase 05 之後、Phase 06 之前追加）
+
+> 使用者要求暫緩進入 Phase 06，先新增一個可視化介面查看 API 資料（文字 + 圖表）。此為範疇外的
+> 輕量追加，未依標準 SSDLC Phase 02（系統設計）先產出 UI 雛型再進 Phase 03 實作的順序，而是直接
+> 於既有 Phase 03 `app/` 套件內新增靜態前端頁面，故未建立獨立 Baseline，僅在此矩陣與
+> `system_specification.md`／`memory.md` 中補充記錄，維持追溯完整性。
+
+- **技術方案**：嵌入 FastAPI 的靜態頁面（`GET /dashboard`），無額外 Python 依賴，前端為手刻 SVG 圖表（無 CDN 相依），呼叫既有 7 個 API 端點。
+- **內容**：公司選擇器、財務指標歷史（表格 + 趨勢圖，7 指標可切換）、股價歷史趨勢圖、最新預測結果（KPI 卡片 + 股價圖上以區間色塊疊加融合/財報因子/時間序列三模型明細）、回測準確率（含尚無資料時的空狀態）。
+- **配色**：採用 dataviz skill 的參考色板，已實際執行 `validate_palette.js` 驗證 light/dark 兩模式（皆 PASS，含 CVD 分離度與對比度檢查）。
+- **驗證方式**：由於本環境無法開啟真實使用者瀏覽器，改以 Chrome headless（系統既有安裝）+ Puppeteer 驅動，實際輸入 API Key、選擇公司、觸發圖表 hover，並擷取螢幕截圖確認：light mode、dark mode、無效金鑰錯誤狀態、tooltip 互動皆正確渲染。新增 `tests/test_dashboard.py`（3 項）驗證路由本身可正常回應。全部 52 項自動化測試（Phase 03/04 既有 49 + 本次 3）皆通過。
 
 ## 框架瑕疵回饋（詳見根目錄 `待辦事項.md`）
 

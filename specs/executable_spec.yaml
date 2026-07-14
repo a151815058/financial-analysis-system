@@ -7,11 +7,21 @@
 
 project:
   name: "各公司各季度財務分析與股價預測系統"
-  version: "0.6.0"
+  version: "0.7.0"
   created: "2026-07-14"
-  last_updated: "2026-07-14T04:45:00"
+  last_updated: "2026-07-14T05:15:00"
   current_phase: "06_maintenance"
-  description: "彙整台股與美股各公司季度財務資料，計算 7 項核心財務指標，結合財報因子統計模型與股價時間序列模型，產出每週漲跌方向與幅度區間預測，並提供查詢 API。"
+  description: "彙整台股與美股各公司季度財務資料，計算 7 項核心財務指標，結合財報因子統計模型與股價時間序列模型，產出每週漲跌方向與幅度區間預測，並提供查詢 API 與內部分析儀表板。"
+
+# REQ_010：內部分析儀表板（Phase 05 之後、Phase 06 之前追加，使用者要求之範疇外輕量新增）
+feature_010_dashboard:
+  status: completed
+  baseline: null # 未走完整 Phase PDCA，未建立獨立 Baseline，詳見 memory.md 與 traceability_matrix.md
+  route: "/dashboard"
+  static_assets: ["app/static/dashboard.html", "app/static/dashboard.css", "app/static/dashboard.js"]
+  tests: "03_implementation_and_coding/outputs/tests/test_dashboard.py（3 項）"
+  verification: "Chrome headless + Puppeteer 實際驅動，截圖確認 light/dark mode、錯誤狀態、tooltip 互動；dataviz skill validate_palette.js 驗證色板通過"
+  total_tests_after_addition: 52
 
 security_baseline:
   enabled: true
@@ -303,3 +313,7 @@ change_log:
     phase: "05 (部署發布)"
     version: "0.6.0"
     summary: "決策：正式資料庫 PostgreSQL、部署方式 Docker（僅產出組態未實際 build，因環境無 Docker）；產出 Dockerfile/docker-compose/nginx.conf（含補上 Phase04 DAST 發現之安全標頭）、SBOM、build_manifest.json（33 檔 SHA-256，已重新驗證一致）、signature_status.json（誠實記錄無簽章憑證）；手動安裝並實測 Git pre-commit 密鑰掃描 hook；發現並記錄 2 項框架腳本瑕疵（待辦事項 #6/#7）；Evaluator 加權總分 66（如實反映未經真實基礎設施驗證），部署安全子項 90% 通過安全關卡；建立 Phase 05 Baseline，Phase 06 解鎖"
+  - date: "2026-07-14"
+    phase: "05+ (範疇外追加，Phase 06 前)"
+    version: "0.7.0"
+    summary: "使用者要求暫緩 Phase 06，先新增內部分析儀表板（REQ_010/FEAT_010）：GET /dashboard 靜態頁面，文字+SVG圖表呈現財務指標歷史、股價趨勢、最新預測（含三模型明細區間疊加）、回測準確率；無 CDN 相依；以 Chrome headless+Puppeteer 實際驅動驗證 light/dark mode 與互動；色板通過 dataviz skill validate_palette.js 驗證；新增 3 項自動化測試（累計 52 項全數通過）；未走完整 Phase 02 UI 設計流程，未建立獨立 Baseline"
