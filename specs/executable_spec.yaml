@@ -7,10 +7,10 @@
 
 project:
   name: "各公司各季度財務分析與股價預測系統"
-  version: "0.3.0"
+  version: "0.4.0"
   created: "2026-07-14"
-  last_updated: "2026-07-14T02:00:00"
-  current_phase: "03_implementation_and_coding"
+  last_updated: "2026-07-14T03:30:00"
+  current_phase: "04_testing"
   description: "彙整台股與美股各公司季度財務資料，計算 7 項核心財務指標，結合財報因子統計模型與股價時間序列模型，產出每週漲跌方向與幅度區間預測，並提供查詢 API。"
 
 security_baseline:
@@ -155,12 +155,45 @@ phase_02_design:
     errors: { type_a: [], type_b: [] }
 
 phase_03_implementation:
-  status: pending
-  baseline: null
-  modules: []
+  status: completed
+  baseline: "baseline/phase-03/baseline-v1/"
+  tech_stack:
+    language: "Python 3.14"
+    api_framework: "FastAPI 0.139 + Uvicorn"
+    orm: "SQLAlchemy 2.0"
+    database_dev: "SQLite（開發/測試）；正式環境為 PostgreSQL（Phase 05 決定）"
+    statistical_model: "scikit-learn（GradientBoostingClassifier 分類方向）+ statsmodels（QuantReg 分位數迴歸估幅度區間）"
+    timeseries_model: "statsmodels ARIMA(2,1,2)"
+    scheduler: "APScheduler"
+  modules:
+    - { path: "app/config.py", task: "T-01", status: completed }
+    - { path: "app/db_models.py", task: "T-02", status: completed }
+    - { path: "app/ingestion/normalizer.py", task: "T-03", status: completed }
+    - { path: "app/ingestion/mops_client.py", task: "T-04", status: completed }
+    - { path: "app/ingestion/sec_edgar_client.py", task: "T-05", status: completed }
+    - { path: "app/ingestion/alpha_vantage_client.py", task: "T-06", status: completed }
+    - { path: "app/prediction/factor_model.py", task: "T-07", status: completed }
+    - { path: "app/prediction/timeseries_model.py", task: "T-08", status: completed }
+    - { path: "app/prediction/ensemble.py", task: "T-09", status: completed }
+    - { path: "app/prediction/backtest.py", task: "T-10", status: completed }
+    - { path: "app/auth.py + app/audit.py", task: "T-11", status: completed }
+    - { path: "app/routers/*.py + app/main.py", task: "T-12", status: completed }
+    - { path: "app/scheduler.py", task: "T-13", status: completed }
+  open_issues_resolved:
+    - id: "OI-002"
+      resolution: "app/ingestion/sec_edgar_client.py 以 us-gaap 標籤備援清單解決，測試見 tests/test_sec_edgar_mapping.py"
+    - id: "OI-003"
+      resolution: "app/prediction/factor_model.py 改採 statsmodels QuantReg 分位數迴歸（5%/95%）估計區間，非固定級距"
+  findings_fixed_during_evaluation:
+    - "安全檢核發現 audit_logs 缺來源 IP（構面2項次19），已新增 source_ip 欄位並於全端點寫入，測試驗證通過"
+  unit_test_results: "03_implementation_and_coding/outputs/unit_test_results.xml（49 passed）"
+  lint_report: "03_implementation_and_coding/outputs/lint_report.txt（ruff check/format 全數通過）"
+  security_scan_report: "03_implementation_and_coding/outputs/security_scan_report.json（bandit 0 findings, pip-audit 0 known vulnerabilities）"
+  security_check_report: "03_implementation_and_coding/outputs/security_check_report.md（本階段安全評分 100%）"
   evaluator:
-    passed: false
-    scores: {}
+    passed: true
+    scores: { spec_compliance: 94, code_quality: 100, test_coverage: 95, security_handling: 100 }
+    weighted_total: 97
     errors: { type_a: [], type_b: [] }
 
 phase_04_testing:
@@ -208,3 +241,7 @@ change_log:
     phase: "02 (系統設計)"
     version: "0.3.0"
     summary: "確認 OI-001（市場資料 API 採 Alpha Vantage），產出 7 項資料表 DB Schema、ER 圖、API 規格（7 端點）、用例圖、活動圖、時序圖、威脅建模；不含 UI 雛型（後端服務定位）；Evaluator 通過（94 分），建立 Phase 02 Baseline，Phase 03 解鎖"
+  - date: "2026-07-14"
+    phase: "03 (開發與編碼)"
+    version: "0.4.0"
+    summary: "完成 13 項任務實作（FastAPI + SQLAlchemy + scikit-learn/statsmodels），解決 OI-002（SEC EDGAR 標籤備援）、OI-003（分位數迴歸估區間）；49 項單元測試全數通過；ruff/bandit/pip-audit 全數乾淨；安全檢核發現稽核日誌缺來源IP並當場修復；Evaluator 通過（97 分），建立 Phase 03 Baseline，Phase 04 解鎖"

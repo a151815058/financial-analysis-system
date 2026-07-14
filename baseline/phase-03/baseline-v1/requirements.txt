@@ -1,0 +1,21 @@
+fastapi==0.139.0
+uvicorn==0.51.0
+pydantic==2.13.4
+SQLAlchemy==2.0.51
+requests==2.34.2
+python-dotenv==1.2.2
+APScheduler==3.11.3
+pandas==3.0.3
+numpy==2.5.1
+scikit-learn==1.9.0
+statsmodels==0.14.6
+scipy==1.17.1
+beautifulsoup4==4.15.0
+lxml==6.1.1
+
+# dev/test dependencies
+pytest==9.1.1
+httpx==0.28.1
+ruff
+bandit
+pip-audit

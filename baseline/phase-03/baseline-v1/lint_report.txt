@@ -1,0 +1,7 @@
+=== ruff check ===
+All checks passed!
+
+=== ruff format --check ===
+37 files already formatted
+
+全部通過：ruff check 0 errors, ruff format 無需重新格式化

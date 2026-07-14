@@ -132,6 +132,7 @@ CREATE TABLE audit_logs (
     action       VARCHAR(100) NOT NULL,                  -- 如 'ingest.mops', 'predict.run', 'api.query'
     resource     VARCHAR(200),
     result       VARCHAR(20)  NOT NULL CHECK (result IN ('SUCCESS', 'FAILURE')),
+    source_ip    VARCHAR(45),                             -- IPv4/IPv6，Phase 03 安全檢核新增（構面2項次19）
     detail       JSONB,
     occurred_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );

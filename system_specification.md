@@ -1,7 +1,7 @@
 # 系統功能規格說明書 (Living Documentation)
 
 > **專案名稱**：各公司各季度財務分析與股價預測系統
-> **文件版本**：v0.3（Phase 02 完成）
+> **文件版本**：v0.4（Phase 03 完成）
 > **最後更新**：2026-07-14
 
 ## 【第一部分：人類閱讀區】
@@ -56,7 +56,25 @@
 7 張資料表，詳細 DDL 見 `02_system_design/outputs/db_schema.sql`，ER 圖見 `02_system_design/outputs/er_diagram.md`：`companies`、`financial_reports`、`price_history`、`predictions`、`prediction_backtests`、`api_keys`、`audit_logs`。
 
 #### 技術架構需求
-_(待 Phase 03 完成後自動同步；Phase 01 建議技術棧：Python + FastAPI + PostgreSQL + statsmodels/scikit-learn + Prophet/ARIMA + APScheduler，詳見 `formal_requirements.md` 第四節)_
+
+| 類別 | 實際採用 |
+| :--- | :--- |
+| 語言 | Python 3.14 |
+| API 框架 | FastAPI 0.139 + Uvicorn |
+| ORM | SQLAlchemy 2.0 |
+| 開發/測試資料庫 | SQLite（正式環境 PostgreSQL 待 Phase 05 決定） |
+| 統計模型 | scikit-learn GradientBoostingClassifier（方向分類）+ statsmodels QuantReg（5%/95% 分位數迴歸估幅度區間） |
+| 時間序列模型 | statsmodels ARIMA(2,1,2) |
+| 排程 | APScheduler |
+| Lint/Format | ruff |
+| SAST/依賴掃描 | bandit + pip-audit |
+
+模組結構：`app/config.py`、`app/db_models.py`、`app/ingestion/`（normalizer/mops_client/sec_edgar_client/alpha_vantage_client）、`app/prediction/`（factor_model/timeseries_model/ensemble/backtest）、`app/auth.py`+`app/audit.py`、`app/routers/`（companies/predictions/admin）、`app/scheduler.py`。
+
+**關鍵實作決策**：
+- OI-002（美股欄位對應）：`sec_edgar_client.py` 採 us-gaap 標籤備援清單設計，容忍不同公司/年度使用不同但語意相同的標籤。
+- OI-003（預測幅度區間粒度）：改採統計分位數迴歸而非固定級距，依實際資料分布給出區間寬度。
+- 安全檢核發現稽核日誌缺來源 IP（構面 2 項次 19），已於本階段當場修復（新增 `audit_logs.source_ip` 欄位）並補上測試驗證。
 
 ### 四、 UML 系統模型
 
@@ -82,6 +100,7 @@ _(待 Phase 06 完成後自動同步)_
 | 2026-07-14 | 00 (@init) | v0.1 | 專案初始化，建立標準 SSDLC 目錄結構，啟用中級資安防護基準、引導式協作與 IO 管理 |
 | 2026-07-14 | 01（規劃與需求分析） | v0.2 | 完成需求釐清（含美股資料來源缺口拷問），產出 9 項功能需求 + 1 項安全需求；Evaluator 通過（92 分）；建立 Phase 01 Baseline；Phase 02 解鎖 |
 | 2026-07-14 | 02（系統設計） | v0.3 | 確認 OI-001（Alpha Vantage）；產出 DB Schema（7 表）、API 規格（7 端點）、用例圖、活動圖、時序圖、威脅建模；不含 UI 雛型；Evaluator 通過（94 分）；建立 Phase 02 Baseline；Phase 03 解鎖 |
+| 2026-07-14 | 03（開發與編碼） | v0.4 | 完成 13 項任務實作；解決 OI-002/OI-003；49 項單元測試全數通過；ruff/bandit/pip-audit 全數乾淨；安全檢核發現並當場修復稽核日誌缺來源IP；Evaluator 通過（97 分）；建立 Phase 03 Baseline；Phase 04 解鎖 |
 
 ## 【第二部分：機器執行區】
 

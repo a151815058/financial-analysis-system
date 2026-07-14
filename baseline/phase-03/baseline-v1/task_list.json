@@ -1,0 +1,128 @@
+{
+  "phase": "03_implementation_and_coding",
+  "generated_at": "2026-07-14T02:30:00",
+  "source_inputs": ["02_system_design/outputs/db_schema.sql", "02_system_design/outputs/api_spec.md", "02_system_design/outputs/threat_model.md"],
+  "tech_stack": {
+    "language": "Python 3.14",
+    "api_framework": "FastAPI 0.139 + Uvicorn",
+    "orm": "SQLAlchemy 2.0",
+    "database_dev": "SQLite（開發/測試）；正式環境為 PostgreSQL（Phase 05 決定）",
+    "statistical_model": "scikit-learn（分類方向）+ statsmodels（分位數迴歸估幅度區間）",
+    "timeseries_model": "statsmodels ARIMA",
+    "scheduler": "APScheduler",
+    "linter_formatter": "ruff（lint + format，取代 flake8/black 雙工具）",
+    "sast_tool": "bandit + pip-audit"
+  },
+  "open_issues_resolved_this_phase": [
+    {
+      "id": "OI-002",
+      "resolution": "美股財報改用 SEC EDGAR Company Facts API（us-gaap XBRL taxonomy），於 app/ingestion/sec_edgar_client.py 定義明確欄位對應白名單（含備援 tag 清單），而非逐檔案手動比對"
+    },
+    {
+      "id": "OI-003",
+      "resolution": "預測幅度區間改採統計方法而非固定級距：以 statsmodels 分位數迴歸估計 5%/95% 分位數作為區間上下限，四捨五入至最近 0.5%，比人為固定級距更具統計依據"
+    }
+  ],
+  "security_requirements_applied": [
+    "輸入驗證：所有外部 API 回應與查詢參數皆經 Pydantic Schema 驗證",
+    "API 存取控制：X-API-Key 標頭驗證 + scope 檢查（read/admin）",
+    "事件日誌：所有查詢與 admin 動作寫入 audit_logs（含 api_key_id、action、result）",
+    "密鑰管理：API Key 僅比對雜湊值，不記錄明文；外部服務金鑰一律讀取環境變數",
+    "HTTPS：正式環境由 Phase 05 部署層強制，本機開發階段列為已知限制"
+  ],
+  "tasks": [
+    {
+      "id": "T-01",
+      "module": "app/config.py",
+      "description": "環境設定與外部 API 金鑰讀取（.env）",
+      "depends_on": [],
+      "unit_test": "tests/test_config.py（略，透過其他測試間接驗證環境變數載入）"
+    },
+    {
+      "id": "T-02",
+      "module": "app/db_models.py + app/db_session.py",
+      "description": "SQLAlchemy ORM 模型，對應 db_schema.sql 7 張表",
+      "depends_on": ["T-01"],
+      "unit_test": "tests/test_api_companies.py（透過 API 整合驗證 ORM 正確性）"
+    },
+    {
+      "id": "T-03",
+      "module": "app/ingestion/normalizer.py",
+      "description": "REQ_003 跨市場財務指標正規化（幣別標註、版本化 is_latest_version 邏輯）",
+      "depends_on": ["T-02"],
+      "unit_test": "tests/test_normalizer.py：驗證版本遞增與 is_latest_version 正確切換"
+    },
+    {
+      "id": "T-04",
+      "module": "app/ingestion/mops_client.py",
+      "description": "REQ_001 台股財報擷取（MOPS），含逾時重試與錯誤處理，不中斷整批任務",
+      "depends_on": ["T-03"],
+      "unit_test": "tests/test_mops_client.py：以 mock HTTP 回應驗證解析與重試邏輯"
+    },
+    {
+      "id": "T-05",
+      "module": "app/ingestion/sec_edgar_client.py",
+      "description": "REQ_002 美股財報擷取（SEC EDGAR Company Facts API），解決 OI-002 欄位對應",
+      "depends_on": ["T-03"],
+      "unit_test": "tests/test_sec_edgar_mapping.py：驗證 us-gaap 標籤對應與備援 tag 選取邏輯"
+    },
+    {
+      "id": "T-06",
+      "module": "app/ingestion/alpha_vantage_client.py",
+      "description": "REQ_002/005 股價資料擷取（Alpha Vantage）",
+      "depends_on": ["T-01"],
+      "unit_test": "tests/test_alpha_vantage_client.py：以 mock HTTP 回應驗證解析邏輯"
+    },
+    {
+      "id": "T-07",
+      "module": "app/prediction/factor_model.py",
+      "description": "REQ_004 財報因子統計模型（分類方向 + 分位數迴歸幅度區間），解決 OI-003",
+      "depends_on": ["T-03"],
+      "unit_test": "tests/test_factor_model.py：合成資料驗證輸出格式與可重現性（固定 random_state）"
+    },
+    {
+      "id": "T-08",
+      "module": "app/prediction/timeseries_model.py",
+      "description": "REQ_005 股價時間序列模型（ARIMA）",
+      "depends_on": ["T-06"],
+      "unit_test": "tests/test_timeseries_model.py：合成股價序列驗證輸出格式與缺值處理"
+    },
+    {
+      "id": "T-09",
+      "module": "app/prediction/ensemble.py",
+      "description": "REQ_006 雙模型融合（可設定權重），保留子模型明細",
+      "depends_on": ["T-07", "T-08"],
+      "unit_test": "tests/test_ensemble.py：驗證加權邏輯與子模型明細保留"
+    },
+    {
+      "id": "T-10",
+      "module": "app/prediction/backtest.py",
+      "description": "REQ_009 預測準確率回測（方向命中率、區間命中率）",
+      "depends_on": ["T-09"],
+      "unit_test": "tests/test_backtest.py：驗證命中率計算正確性"
+    },
+    {
+      "id": "T-11",
+      "module": "app/auth.py + app/audit.py",
+      "description": "REQ_SEC_001 API Key 驗證（scope 檢查）+ 稽核日誌寫入",
+      "depends_on": ["T-02"],
+      "unit_test": "tests/test_auth.py：驗證有效/無效/權限不足三種情境"
+    },
+    {
+      "id": "T-12",
+      "module": "app/routers/companies.py + predictions.py + admin.py + app/main.py",
+      "description": "REQ_007/008 API 端點（對應 api_spec.md 7 端點）",
+      "depends_on": ["T-04", "T-05", "T-06", "T-09", "T-10", "T-11"],
+      "unit_test": "tests/test_api_companies.py, tests/test_api_predictions.py：FastAPI TestClient 整合測試"
+    },
+    {
+      "id": "T-13",
+      "module": "app/scheduler.py",
+      "description": "REQ_008 排程機制（財報/股價擷取、模型重訓、回測任務）",
+      "depends_on": ["T-12"],
+      "unit_test": "略（APScheduler 任務註冊為宣告式設定，於 Phase 04 以整合測試驗證實際觸發）"
+    }
+  ],
+  "linter_formatter_result": "見 outputs/lint_report.txt（ruff check + ruff format --check）",
+  "unit_test_result": "見 outputs/unit_test_results.xml（pytest --junitxml）"
+}

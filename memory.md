@@ -51,6 +51,21 @@
 - 依 CORE_RULES「所有開發工作必須在非 main 分支上進行」之規範，建立並切換至工作分支 `phase-03-implementation`，`main` 保留作為里程碑基準分支。
 - 之後每個階段完成後將各自產生獨立 commit，`@snapshot`/`@baseline` 從此可產生真正的 `git diff` 補丁供 `@restore` 使用。
 
+### 2026-07-14 — Session 1（續）：Phase 03 開發與編碼完成
+
+- Planner 拆解 13 項任務（T-01~T-13），選定技術棧：Python 3.14 + FastAPI + SQLAlchemy 2.0 + scikit-learn + statsmodels + APScheduler。
+- Generator 實作完整 `app/` 套件：資料擷取（MOPS/SEC EDGAR/Alpha Vantage）、正規化、財報因子模型（GradientBoostingClassifier + QuantReg）、時間序列模型（ARIMA）、雙模型融合、回測、API Key 認證、稽核日誌、7 個 API 端點、排程宣告。
+- **解決 OI-002**：`sec_edgar_client.py` 採 us-gaap 標籤備援清單，容忍不同公司/年度標籤差異。
+- **解決 OI-003**：`factor_model.py` 改採統計分位數迴歸（5%/95%）估計幅度區間，取代原先考慮的固定級距方案。
+- **環境問題排除**：本機 Python 3.14 Windows 環境下，`scipy 1.18.0` 官方 wheel 之 `scipy.signal._max_len_seq_inner` 載入失敗（DLL load failed），導致 `statsmodels`（ARIMA/QuantReg）完全無法使用；改用 `scipy==1.17.1` 後驗證修復，已固定於 `requirements.txt` 並於 Baseline MANIFEST 中特別註記，供 Phase 05 換部署環境時留意重驗證。
+- 撰寫 49 項 pytest 單元/整合測試（涵蓋正規化版本控管、三個外部資料源之批次隔離失敗、模型輸出格式與可重現性、融合邏輯、回測計算、API 認證與端點行為），全數通過。
+- 執行 `ruff check`/`ruff format`（0 錯誤）、`bandit` SAST（0 findings）、`pip-audit` 依賴掃描（0 已知漏洞）。
+- **安全檢核發現並當場修復**：稽核日誌 `audit_logs` 缺來源 IP 欄位（對應中級檢核構面 2 項次 19），新增 `source_ip` 欄位、於全部端點寫入、補上測試驗證；同步回補 Phase 02 的 `db_schema.sql`。
+- Evaluator 審查通過，加權總分 97（spec_compliance 94 / code_quality 100 / test_coverage 95 / security_handling 100）；本階段安全評分 100%（6 項安全關卡指標，HTTPS 因本機開發環境列為階段性限制不計分）。
+- 全域 Agent 已同步：`traceability_matrix.md`、`system_specification.md` 更新至 v0.4；建立 `baseline/phase-03/baseline-v1/`，並實際執行可執行性驗證（`python -m py_compile` 語法檢查通過、`uvicorn` 啟動後 `GET /health` 回應 200、49 個檔案 SHA-256 雜湊清單）；`phase_gates.json` 更新（03 completed，04 in_progress）。
+- 已於 `phase-03-implementation` 分支提交 Git commit。
+- 下一步：Phase 04 測試驗證（現有 49 項單元測試已於 Phase 03 完成，Phase 04 聚焦於整合測試報告彙整、覆蓋率分析，以及視需要之滲透測試規劃）。
+
 ## 關鍵決策記錄
 
 | 時間 | 決策 | 理由 |
@@ -62,11 +77,14 @@
 | 2026-07-14 | 預測輸出定為「方向 + 幅度區間」而非絕對股價 | 對財報因子（季頻）與時間序列（日頻）混合訊號而言，區間預測較穩健，也保留更多資訊量 |
 | 2026-07-14 | 系統定位為後端服務 + API，不做網頁 UI | 使用者明確表示僅需分析/預測服務，Phase 02 可省略 UI 雛型設計 |
 | 2026-07-14 | 美股市場資料 API 選定 Alpha Vantage | 免費層級可用、支援股價與基本財務指標，適合 MVP 階段（速率限制列為已知限制，Phase 03 排程需考量） |
+| 2026-07-14 | 預測幅度區間改採統計分位數迴歸，不用固定級距 | 依實際資料分布給出區間寬度，較具統計依據；解決 Phase 01 遺留的 OI-003 |
+| 2026-07-14 | 美股財報欄位對應採「備援 tag 清單」設計 | 不同公司/年度可能用不同但語意相同的 us-gaap 標籤，備援清單避免單一標籤缺失即擷取失敗；解決 OI-002 |
+| 2026-07-14 | requirements.txt 明確釘選 scipy==1.17.1 | scipy 1.18.0 官方 cp314 Windows wheel 之 `scipy.signal` 編譯擴充損壞，1.17.1 驗證可正常運作 |
 
 ## 當前狀態
 
-- 目前階段：Phase 03（開發與編碼）— `in_progress`（Phase 01、02 已完成並各自建立 Baseline v1）
-- 下一步建議：進行 Phase 03 實作任務拆解（資料擷取模組、正規化模組、財報因子模型、時間序列模型、融合模組、API 層、排程），並處理 OI-002（美股 XBRL 欄位對應）、OI-003（預測幅度區間粒度）。
+- 目前階段：Phase 04（測試驗證）— `in_progress`（Phase 01~03 已完成並各自建立 Baseline v1）
+- 下一步建議：Phase 04 聚焦於彙整已有的 49 項單元測試結果為正式測試報告、執行覆蓋率分析（coverage.py）、視需要規劃 API 整合測試（httpx AsyncClient 對真實 SQLite/PostgreSQL）與 Phase 03 資安檢核提到的滲透測試（項次57，目前⬚未涵蓋）。
 
 ## Git 版本歷程
 

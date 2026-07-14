@@ -16,6 +16,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
+.ruff_cache/
 
 # Node.js（若未來擴充前端）
 node_modules/

@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# E501: 已設定 line-length，長行由人工判斷可讀性。
+# B008: FastAPI 官方慣用法，Depends()/Query() 必須寫在參數預設值中，非真正的可變預設值陷阱。
+ignore = ["E501", "B008"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

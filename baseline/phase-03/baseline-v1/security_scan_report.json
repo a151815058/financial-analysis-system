@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-07-14T03:30:00",
+  "tools": {
+    "sast": {
+      "tool": "bandit",
+      "version": "1.9",
+      "scope": "app/"
+    },
+    "dependency_scan": {
+      "tool": "pip-audit",
+      "scope": "requirements.txt"
+    }
+  },
+  "sast_summary": {
+    "total_findings": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "loc_scanned": 1305,
+    "findings": []
+  },
+  "dependency_scan_summary": {
+    "vulnerable_packages": [],
+    "total_dependencies_scanned": 68
+  }
+}
