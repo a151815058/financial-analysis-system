@@ -42,6 +42,15 @@
 - OI-002（美股 XBRL 欄位對應）、OI-003（預測幅度區間粒度）延續帶入 Phase 03。
 - 下一步：開始 Phase 03 開發與編碼（依建議技術棧 Python + FastAPI + PostgreSQL + statsmodels/scikit-learn + Prophet/ARIMA 進行實作任務拆解）。
 
+### 2026-07-14 — Session 1（續）：補建 Git 版本控管
+
+- 專案於 `@init` 時未同步建立 Git 倉庫，Phase 01、02 已在無版本控管狀態下完成。
+- 使用者要求補建 Git，執行 `git init`，建立 `.gitignore`（排除 `.env`/`*.db`/`__pycache__` 等）。
+- 由於 Phase 01/02 的中間檔案狀態未個別保存，無法拆分出符合歷史真實性的逐階段 commit，故以單一 root commit `bd804a9` 一次性納入現況，commit message 中明確標註「補建 Git、Phase 01-02 為回溯納入」，避免誤讀為虛構的漸進式歷史。
+- 建立兩個回溯性 Baseline 標籤：`baseline-phase01-v1`、`baseline-phase02-v1`（皆指向 root commit，訊息中註明為回溯標記）。
+- 依 CORE_RULES「所有開發工作必須在非 main 分支上進行」之規範，建立並切換至工作分支 `phase-03-implementation`，`main` 保留作為里程碑基準分支。
+- 之後每個階段完成後將各自產生獨立 commit，`@snapshot`/`@baseline` 從此可產生真正的 `git diff` 補丁供 `@restore` 使用。
+
 ## 關鍵決策記錄
 
 | 時間 | 決策 | 理由 |
@@ -61,4 +70,9 @@
 
 ## Git 版本歷程
 
-_(尚未初始化 Git 倉庫)_
+| 時間 | 動作 | 說明 |
+| :--- | :--- | :--- |
+| 2026-07-14 | `git init` + root commit `bd804a9` | 補建版本控管，一次性納入 Phase 01/02 現況 |
+| 2026-07-14 | 建立標籤 `baseline-phase01-v1` | 回溯標記，指向 root commit |
+| 2026-07-14 | 建立標籤 `baseline-phase02-v1` | 回溯標記，指向 root commit |
+| 2026-07-14 | 建立並切換分支 `phase-03-implementation` | `main` 保留為基準分支，後續開發於此分支進行 |
