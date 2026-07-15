@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: financial-analysis-system
+    env: docker
+    dockerfilePath: ./05_deployment/outputs/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        sync: false
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false
+      - key: SEC_EDGAR_USER_AGENT
+        sync: false
+      - key: MOPS_BASE_URL
+        value: https://mopsov.twse.com.tw
+      - key: HTTP_TIMEOUT_SECONDS
+        value: "10"
+      - key: HTTP_MAX_RETRIES
+        value: "3"
+      - key: MIN_SECURITY_SCORE_PCT
+        value: "70"
