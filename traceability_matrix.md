@@ -18,6 +18,7 @@
 | REQ_010 | 使用者口述（Phase 05 後追加，Phase 06 前） | 補於本文件 | 無獨立設計文件（沿用既有 API 端點，未另建 UI 雛型） | `app/static/dashboard.{html,css,js}`、`app/main.py`（`/dashboard`、`/static` 掛載） | `tests/test_dashboard.py`（3 項）+ 真實瀏覽器驗證（Chrome headless + Puppeteer，見下方說明）+ 本次以真實瀏覽器視窗顯示台積電/Apple 真實資料 | 隨 app 容器一併部署（無獨立服務） | `06_maintenance/outputs/regression_test_report.md`（`test_dashboard.py` 3 項無回歸） | `[已驗證]` |
 | REQ_011 | 使用者口述（Phase 06 後追加，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(POST /api/v1/companies)<br>`threat_model.md` §三之一 | `app/routers/companies.py`（POST 端點）、`app/schemas.py`（`CompanyCreateRequest`）、`app/ingestion/sec_edgar_client.py`（`lookup_cik`）、`app/jobs.py`（新檔）、`app/static/dashboard.{html,css,js}`（新增公司表單） | `tests/test_api_companies.py`（新增 6 項）、`tests/test_cik_lookup.py`（4 項）、`tests/test_jobs.py`（3 項） | 隨 app 容器一併部署（無獨立服務）；排程任務現會真實呼叫外部 API，見 §五之提醒 | 補於本文件下方「REQ_011 補充說明」 | `[已驗證]` |
 | REQ_012 | 使用者口述（REQ_011 之延伸，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(GET /api/v1/companies/search) | `app/routers/companies.py`(`GET /search`)、`app/ingestion/mops_client.py`(`search_companies`，重用既有損益表端點)、`app/ingestion/sec_edgar_client.py`(`search_companies`，擴充既有 ticker 對照表快取)、`app/static/dashboard.{html,css,js}`（新增公司表單改為代碼/名稱擇一輸入之搜尋建議） | `tests/test_api_companies.py`（新增 3 項）、`tests/test_mops_client.py`（新增 4 項）、`tests/test_cik_lookup.py`（新增 4 項） | 隨 app 容器一併部署（無獨立服務） | 補於本文件下方「REQ_012 補充說明」 | `[已驗證]` |
+| REQ_013 | 使用者口述（out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(GET /api/v1/admin/jobs、GET /admin) | `app/db_models.py`(`JobRun`)、`app/jobs.py`(`track_job`)、`app/routers/admin.py`(`GET /jobs` 擴充、`trigger_ingest` 帶 `trigger_mode`)、`app/static/admin.{html,js}`（新頁面）、`app/main.py`(`GET /admin` 路由、`job_functions` 全數包上 `track_job`) | `tests/test_jobs.py`（新增 4 項）、`tests/test_admin_jobs.py`（3 項）、`tests/test_admin_page.py`（3 項） | 隨 app 容器一併部署（無獨立服務）；`job_runs` 為新資料表，`init_db()` 之 `Base.metadata.create_all` 於下次啟動時自動建立，無需手動 migration（與 HF-004 之 ALTER TABLE 情境不同） | 補於本文件下方「REQ_013 補充說明」 | `[已驗證]` |
 
 > 說明：`[不連貫警告]` 為框架標準狀態標記，表示該需求尚未貫穿所有階段。Phase 06（維護與營運）已於 2026-07-15 完成第一輪，REQ_001/002/003/007/SEC_001/010 已因本輪真實資料擷取與熱修補而更新為 `[已驗證]`；REQ_004/005/006/009 仍標記 `[不連貫警告]`，原因是模型預測/回測尚未對真實資料執行（非監控或測試機制缺陷，見 `06_maintenance/outputs/monitoring_dashboard.md`）。REQ_008 已因 REQ_011（同日 out-of-band 追加）補齊 3 個資料擷取任務的真實邏輯而更新為 `[已驗證]`，模型類任務的限制併入 REQ_004/005/006 之既有已知限制範圍，不再視為 REQ_008 本身之缺口。
 >
@@ -87,6 +88,26 @@
 - **驗證方式**：新增 11 項自動化測試（`test_mops_client.py`、`test_cik_lookup.py` 各自的
   `search_companies` 案例、`test_api_companies.py` 之 `GET /search` 端點案例），既有 84 項測試
   （REQ_011 完成時基準）與新增 11 項共 95 項全數通過，無回歸。
+
+## REQ_013 補充說明：排程執行狀況頁面（/admin）+ 手動觸發
+
+> 使用者升級 Render 為付費方案（不休眠）後詢問排程能否穩定執行，進而要求新增一個可檢視排程執行
+> 狀況、並可手動觸發更新的頁面。屬 out-of-band 輕量追加。
+
+- **執行紀錄範圍**：確認後採用「每個任務僅保留最新一筆執行結果」（非歷史紀錄），新增 `job_runs`
+  資料表（`task_name` 為主鍵，`status`/`trigger_mode`/`started_at`/`finished_at`/`detail`），每次
+  執行以 upsert 覆寫。
+- **實作方式**：新增 `app/jobs.py::track_job()` 包裝函式，將全部 6 個排程任務（含 3 個仍為 stub
+  的模型任務）統一包裝，執行完成後記錄成功/失敗；`app/routers/admin.py` 的手動觸發端點呼叫
+  `scheduler.add_job(..., kwargs={"trigger_mode": "manual"})` 以區分排程自動觸發與手動觸發。
+- **頁面位置**：確認後採用獨立 `/admin` 頁面（與 `/dashboard` 分開），需 admin scope API Key，
+  提供任務清單、最新結果（成功/失敗徽章）、下次排定時間、錯誤訊息，以及每個任務的「立即執行」
+  手動觸發按鈕。
+- **資料庫變更方式**：與 HF-004（`companies.cik` 需手動執行 migration）不同，`job_runs` 是全新
+  資料表，`app/db_session.py::init_db()` 呼叫的 `Base.metadata.create_all()` 會在下次應用程式啟動
+  時自動建立，不需額外對正式資料庫手動執行 SQL。
+- **驗證方式**：新增 10 項自動化測試（`track_job` 成功/失敗/手動觸發/upsert 各案例、
+  `GET /api/v1/admin/jobs` 含執行結果與權限檢查、`/admin` 頁面路由），既有測試無回歸。
 
 ## 框架瑕疵回饋（詳見根目錄 `待辦事項.md`）
 

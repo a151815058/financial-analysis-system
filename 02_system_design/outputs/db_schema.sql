@@ -140,3 +140,16 @@ CREATE TABLE audit_logs (
 );
 COMMENT ON TABLE audit_logs IS '🔒 構面 2：事件日誌與可歸責性';
 CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- 8. job_runs — 排程任務最新一次執行狀況（REQ_013，/admin 頁面用）
+-- ---------------------------------------------------------------------------
+CREATE TABLE job_runs (
+    task_name     VARCHAR(40)  PRIMARY KEY,                 -- 對應 scheduler.py 之 job id
+    status        VARCHAR(10)  NOT NULL CHECK (status IN ('success', 'failure')),
+    trigger_mode  VARCHAR(10)  NOT NULL CHECK (trigger_mode IN ('scheduled', 'manual')),
+    started_at    TIMESTAMPTZ  NOT NULL,
+    finished_at   TIMESTAMPTZ  NOT NULL,
+    detail        VARCHAR(1000)                              -- 失敗時之錯誤訊息摘要，成功時為 NULL
+);
+COMMENT ON TABLE job_runs IS 'REQ_013：每個排程任務僅保留最新一筆執行結果（非歷史紀錄），執行時 upsert 覆寫';

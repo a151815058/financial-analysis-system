@@ -4,7 +4,7 @@ services:
     env: docker
     dockerfilePath: ./05_deployment/outputs/Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     healthCheckPath: /health
     envVars:
       - key: PORT

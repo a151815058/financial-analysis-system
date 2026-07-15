@@ -293,6 +293,12 @@ th {
 }
 .table-scroll { overflow-x: auto; }
 
+.table-left th, .table-left td { text-align: left; font-variant-numeric: normal; white-space: normal; }
+.table-left .detail-cell { color: var(--status-critical); font-size: 12px; max-width: 280px; }
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:disabled:hover { background: var(--surface-1); }
+
 .chart-svg { display: block; width: 100%; height: auto; }
 .chart-svg .gridline { stroke: var(--gridline); stroke-width: 1; }
 .chart-svg .axis-text { fill: var(--text-muted); font-size: 11px; }

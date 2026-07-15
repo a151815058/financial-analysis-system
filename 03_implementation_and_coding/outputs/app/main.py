@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.db_session import init_db
-from app.jobs import run_mops_ingest, run_price_ingest, run_sec_edgar_ingest
+from app.jobs import run_mops_ingest, run_price_ingest, run_sec_edgar_ingest, track_job
 from app.routers import admin, companies, predictions
 from app.scheduler import build_scheduler
 
@@ -36,13 +36,14 @@ async def lifespan(_: FastAPI):
     init_db()
     job_functions = {
         # REQ_011：真實擷取邏輯（app/jobs.py），會依 companies 表實際內容打外部 API
-        "mops_ingest": run_mops_ingest,
-        "sec_edgar_ingest": run_sec_edgar_ingest,
-        "price_ingest": run_price_ingest,
+        # REQ_013：以 track_job 包裝，執行結果 upsert 至 job_runs，供 /admin 頁面查詢
+        "mops_ingest": track_job("mops_ingest", run_mops_ingest),
+        "sec_edgar_ingest": track_job("sec_edgar_ingest", run_sec_edgar_ingest),
+        "price_ingest": track_job("price_ingest", run_price_ingest),
         # 模型類任務仍待與預測/回測管線整合，維持佔位函式（不在 REQ_011 範圍）
-        "weekly_predict": _stub_job("weekly_predict"),
-        "model_retrain": _stub_job("model_retrain"),
-        "weekly_backtest": _stub_job("weekly_backtest"),
+        "weekly_predict": track_job("weekly_predict", _stub_job("weekly_predict")),
+        "model_retrain": track_job("model_retrain", _stub_job("model_retrain")),
+        "weekly_backtest": track_job("weekly_backtest", _stub_job("weekly_backtest")),
     }
     scheduler = build_scheduler(job_functions)
     scheduler.start()
@@ -80,3 +81,9 @@ def health() -> dict:
 def dashboard() -> FileResponse:
     """內部分析儀表板（文字 + 圖表），呼叫既有 API 端點呈現財務指標/股價/預測結果。"""
     return FileResponse(STATIC_DIR / "dashboard.html")
+
+
+@app.get("/admin", tags=["system"])
+def admin_page() -> FileResponse:
+    """排程執行狀況頁面（REQ_013），需 admin scope API Key，與 /dashboard 分開。"""
+    return FileResponse(STATIC_DIR / "admin.html")

@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.audit import record as record_audit
 from app.auth import AuthContext, require_admin_scope
+from app.db_models import JobRun
 from app.db_session import get_session
 from app.routers.companies import _client_ip
-from app.schemas import IngestTriggerRequest, IngestTriggerResponse
+from app.schemas import IngestTriggerRequest, IngestTriggerResponse, JobStatusOut
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -35,6 +36,7 @@ def trigger_ingest(
         job.func,
         id=f"{payload.task}_manual_{uuid.uuid4().hex[:8]}",
         next_run_time=dt.datetime.now(),
+        kwargs={"trigger_mode": "manual"},
     )
 
     record_audit(
@@ -48,17 +50,20 @@ def trigger_ingest(
     return IngestTriggerResponse(task=payload.task, status="accepted")
 
 
-@router.get("/jobs")
+@router.get("/jobs", response_model=list[JobStatusOut])
 def list_jobs(
     request: Request,
+    session: Session = Depends(get_session),
     auth: AuthContext = Depends(require_admin_scope),
 ) -> list[dict]:
-    """列出目前排程中的任務與下次執行時間，供本機驗證排程是否已載入/觸發。"""
+    """列出目前排程中的任務、下次執行時間，以及最新一次執行狀況（REQ_013）。"""
     scheduler = request.app.state.scheduler
+    jobs = [job for job in scheduler.get_jobs() if "_manual_" not in job.id]
     return [
         {
             "id": job.id,
-            "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+            "next_run_time": job.next_run_time,
+            "last_run": session.get(JobRun, job.id),
         }
-        for job in scheduler.get_jobs()
+        for job in jobs
     ]

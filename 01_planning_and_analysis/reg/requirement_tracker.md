@@ -14,6 +14,7 @@
 | REQ_SEC_001 | 2026-07-14 | 資安基準（中級） | P0 | API 存取控制與身份驗證 | 待 Phase 02 | 待 Phase 03 | 待 Phase 04 | ✅ 已驗證 |
 | REQ_011 | 2026-07-15 | 使用者口述（out-of-band，比照 REQ_010） | P1 | 使用者可透過 UI/API 新增追蹤公司（台股/美股），美股未提供 CIK 時自動以 SEC ticker 對照表查詢；一併補完 mops_ingest/sec_edgar_ingest/price_ingest 三個排程任務的真實擷取邏輯 | `02_system_design/outputs/api_spec.md` | `app/routers/companies.py`, `app/ingestion/sec_edgar_client.py`, `app/jobs.py` | `tests/test_api_companies.py`, `tests/test_cik_lookup.py`, `tests/test_jobs.py` | ✅ 已驗證 |
 | REQ_012 | 2026-07-15 | 使用者口述（out-of-band，REQ_011 之延伸） | P2 | 新增追蹤公司時，股票代碼與公司名稱擇一輸入即可，並以字串包含比對（大小寫不敏感）方式模糊搜尋候選公司；台股重用既有 TWSE 損益表端點作為目錄，美股重用既有 SEC ticker 對照表 | `02_system_design/outputs/api_spec.md` | `app/routers/companies.py`(`GET /search`), `app/ingestion/mops_client.py`, `app/ingestion/sec_edgar_client.py` | `tests/test_api_companies.py`, `tests/test_mops_client.py`, `tests/test_cik_lookup.py` | ✅ 已驗證 |
+| REQ_013 | 2026-07-15 | 使用者口述（out-of-band） | P1 | 新增獨立 `/admin` 頁面檢視 6 個排程任務之下次執行時間與最新一次執行結果（成功/失敗、觸發方式、錯誤訊息），並可手動立即觸發任務 | `02_system_design/outputs/api_spec.md` | `app/db_models.py`(`JobRun`), `app/jobs.py`(`track_job`), `app/routers/admin.py`, `app/static/admin.{html,js}` | `tests/test_jobs.py`, `tests/test_admin_jobs.py`, `tests/test_admin_page.py` | ✅ 已驗證 |
 
 ## grill-me 缺口拷問記錄
 

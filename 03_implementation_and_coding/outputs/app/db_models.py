@@ -168,6 +168,23 @@ class ApiKey(Base):
     __table_args__ = (CheckConstraint("scope IN ('read', 'admin')", name="ck_api_keys_scope"),)
 
 
+class JobRun(Base):
+    """排程任務最新一次執行狀況（REQ_013）。每個 task_name 僅保留最新一筆，執行時 upsert 覆寫。"""
+
+    __tablename__ = "job_runs"
+    __table_args__ = (
+        CheckConstraint("status IN ('success', 'failure')", name="ck_job_runs_status"),
+        CheckConstraint("trigger_mode IN ('scheduled', 'manual')", name="ck_job_runs_trigger_mode"),
+    )
+
+    task_name: Mapped[str] = mapped_column(String(40), primary_key=True)
+    status: Mapped[str] = mapped_column(String(10), nullable=False)
+    trigger_mode: Mapped[str] = mapped_column(String(10), nullable=False)
+    started_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    detail: Mapped[str | None] = mapped_column(String(1000))
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     __table_args__ = (CheckConstraint("result IN ('SUCCESS', 'FAILURE')", name="ck_audit_logs_result"),)

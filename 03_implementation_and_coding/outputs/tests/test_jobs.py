@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import jobs
-from app.db_models import Base, Company, FinancialReport, PriceHistory
+from app.db_models import Base, Company, FinancialReport, JobRun, PriceHistory
 from app.ingestion import twse_price_client
 from app.ingestion.mops_client import MopsFetchResult
 from app.ingestion.normalizer import NormalizedFinancials
@@ -100,4 +100,68 @@ def test_run_price_ingest_persists_tw_price(monkeypatch):
     price = session.execute(select(PriceHistory)).scalar_one()
     assert price.close_price == 100.5
     assert price.source == "TWSE"
+    session.close()
+
+
+# ---------------------------------------------------------------------------
+# REQ_013：track_job 執行狀態記錄（job_runs upsert）
+# ---------------------------------------------------------------------------
+
+
+def test_track_job_records_success(monkeypatch):
+    session_factory = _make_session_factory()
+    monkeypatch.setattr(jobs, "SessionLocal", session_factory)
+
+    wrapped = jobs.track_job("demo_task", lambda: None)
+    wrapped()
+
+    session = session_factory()
+    run = session.get(JobRun, "demo_task")
+    assert run.status == "success"
+    assert run.trigger_mode == "scheduled"
+    assert run.detail is None
+    session.close()
+
+
+def test_track_job_records_failure_and_does_not_raise(monkeypatch):
+    session_factory = _make_session_factory()
+    monkeypatch.setattr(jobs, "SessionLocal", session_factory)
+
+    def _boom():
+        raise ValueError("external API unreachable")
+
+    wrapped = jobs.track_job("demo_task", _boom)
+    wrapped()  # 不應該往外拋例外，否則排程執行緒會中斷
+
+    session = session_factory()
+    run = session.get(JobRun, "demo_task")
+    assert run.status == "failure"
+    assert "external API unreachable" in run.detail
+    session.close()
+
+
+def test_track_job_records_manual_trigger_mode(monkeypatch):
+    session_factory = _make_session_factory()
+    monkeypatch.setattr(jobs, "SessionLocal", session_factory)
+
+    wrapped = jobs.track_job("demo_task", lambda: None)
+    wrapped(trigger_mode="manual")
+
+    session = session_factory()
+    run = session.get(JobRun, "demo_task")
+    assert run.trigger_mode == "manual"
+    session.close()
+
+
+def test_track_job_upserts_single_row_per_task(monkeypatch):
+    session_factory = _make_session_factory()
+    monkeypatch.setattr(jobs, "SessionLocal", session_factory)
+
+    wrapped = jobs.track_job("demo_task", lambda: None)
+    wrapped()
+    wrapped()
+
+    session = session_factory()
+    runs = session.execute(select(JobRun).where(JobRun.task_name == "demo_task")).scalars().all()
+    assert len(runs) == 1
     session.close()

@@ -75,6 +75,15 @@
       "note": "REQ_011 之延伸使用者回饋：新增公司時股票代碼與公司名稱擇一輸入即可，並支援模糊（字串包含）搜尋。台股重用既有 TWSE 損益表端點、美股重用既有 SEC ticker 對照表作為目錄，未新增外部資料依賴。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
       "tests_added": 11,
       "total_tests": 86
+    },
+    {
+      "id": "REQ_013",
+      "name": "排程執行狀況頁面（/admin）+ 手動觸發（job_runs 執行紀錄）",
+      "added_at": "2026-07-15T02:00:00",
+      "note": "使用者要求新增可檢視排程執行狀況、並可手動更新的頁面。新增 job_runs 資料表（每任務僅保留最新一筆），以 track_job 包裝全部 6 個排程任務（含 3 個仍為 stub 的模型任務）記錄成功/失敗狀態；新增獨立 /admin 頁面（與 /dashboard 分開）。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
+      "tests_added": 11,
+      "total_tests": 97,
+      "tests_added_breakdown": "10 項屬本次 REQ_013；另 1 項（test_root_redirects_to_dashboard）為前次 GET / 重導向修正時新增，先前未登錄於本檔案，一併於此次校正計入"
     }
   ],
   "phase_baseline_enabled": true,

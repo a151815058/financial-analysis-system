@@ -101,6 +101,22 @@ class BacktestResponse(BaseModel):
     range_hit_rate: float
 
 
+class JobRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    status: Literal["success", "failure"]
+    trigger_mode: Literal["scheduled", "manual"]
+    started_at: dt.datetime
+    finished_at: dt.datetime
+    detail: str | None = None
+
+
+class JobStatusOut(BaseModel):
+    id: str
+    next_run_time: dt.datetime | None = None
+    last_run: JobRunOut | None = None
+
+
 class IngestTriggerRequest(BaseModel):
     task: Literal[
         "mops_ingest", "sec_edgar_ingest", "price_ingest", "model_retrain", "weekly_predict", "weekly_backtest"

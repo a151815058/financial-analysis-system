@@ -10,22 +10,22 @@
 
 | 測試層 | 位置 | 說明 | 項數 |
 | :--- | :--- | :--- | :---: |
-| 單元/整合測試 | `03_implementation_and_coding/outputs/tests/`（Phase 03 產出 + REQ_010/REQ_011/REQ_012 out-of-band 追加） | FastAPI `TestClient`（in-process），涵蓋資料擷取、正規化、模型、融合、回測、認證、API 端點邏輯、新增公司/CIK 查詢/模糊搜尋/排程真實擷取邏輯 | 86 |
+| 單元/整合測試 | `03_implementation_and_coding/outputs/tests/`（Phase 03 產出 + REQ_010/REQ_011/REQ_012/REQ_013 out-of-band 追加） | FastAPI `TestClient`（in-process），涵蓋資料擷取、正規化、模型、融合、回測、認證、API 端點邏輯、新增公司/CIK 查詢/模糊搜尋/排程真實擷取邏輯/排程執行狀態記錄 | 97 |
 | 系統整合測試 | `04_testing/outputs/test_api.py` | 真實啟動 `uvicorn` 子行程，以實際 HTTP 呼叫驗證完整部署路徑 | 9 |
-| **合計** | | | **95** |
+| **合計** | | | **106** |
 
 ## 二、測試結果總覽
 
 | 項目 | 結果 |
 | :--- | :--- |
-| 總測試數 | 95 |
-| ✅ 通過 | 95（100%） |
+| 總測試數 | 106 |
+| ✅ 通過 | 106（100%） |
 | ❌ 失敗 | 0 |
-| 程式碼覆蓋率（`app/`） | 92.5%（Phase 04 當時基準，786 行中 727 行已覆蓋；REQ_011/REQ_012 新增模組後尚未重新量測，見下方註記） |
+| 程式碼覆蓋率（`app/`） | 92.5%（Phase 04 當時基準，786 行中 727 行已覆蓋；REQ_011/REQ_012/REQ_013 新增模組後尚未重新量測，見下方註記） |
 | 執行時間 | 約 6~14 秒（視環境而定） |
 | 完整結果檔 | `combined_test_results.xml`（JUnit 格式）、`coverage.json` |
 
-> 2026-07-15 更新：REQ_011（新增追蹤公司 UI/API + 排程真實擷取邏輯）out-of-band 追加後，`tests/` 目錄新增 23 項測試，總數由 58 增至 84；REQ_012（代碼/名稱模糊搜尋）再追加 11 項，總數增至 95，全數通過。覆蓋率百分比為 Phase 04 當時基準，尚未針對本次新增程式碼重新執行 coverage 量測。
+> 2026-07-15 更新：REQ_011（新增追蹤公司 UI/API + 排程真實擷取邏輯）out-of-band 追加後，`tests/` 目錄新增 23 項測試，總數由 58 增至 84；REQ_012（代碼/名稱模糊搜尋）再追加 11 項，總數增至 95；GET / 重導向修正追加 1 項，增至 96（合計含系統整合為 105，先前報告未即時更新此小修正）；REQ_013（排程執行狀況 /admin 頁面 + 手動觸發）再追加 10 項，單元/整合層總數增至 97（合計 106），全數通過。覆蓋率百分比為 Phase 04 當時基準，尚未針對本次新增程式碼重新執行 coverage 量測。
 
 ## 三、需求測試覆蓋率（對應 `reg/requirement_tracker.md`）
 
@@ -43,8 +43,9 @@
 | REQ_SEC_001 | API 存取控制與身份驗證 | `test_auth.py`（6 項）、`test_api.py`（3 項認證相關）、`test_api_companies.py`（REQ_011 新增端點 admin scope 檢查） | ✅ |
 | REQ_011 | 新增追蹤公司 UI/API（含美股 CIK 自動查詢），out-of-band | `test_api_companies.py`（6 項新增）、`test_cik_lookup.py`（4 項）、`test_jobs.py`（3 項） | ✅ |
 | REQ_012 | 新增公司代碼/名稱模糊搜尋，out-of-band（REQ_011 延伸） | `test_api_companies.py`（3 項新增）、`test_mops_client.py`（4 項新增）、`test_cik_lookup.py`（4 項新增） | ✅ |
+| REQ_013 | 排程執行狀況頁面（/admin）+ 手動觸發，out-of-band | `test_jobs.py`（`track_job` 4 項新增）、`test_admin_jobs.py`（3 項）、`test_admin_page.py`（3 項） | ✅ |
 
-**需求測試覆蓋率：9/9 功能需求 + 1/1 安全需求 + 2 項 out-of-band 需求皆有對應測試（100%）**；REQ_008 三個資料擷取任務已解除先前的部分符合狀態，餘下限制見下方說明。
+**需求測試覆蓋率：9/9 功能需求 + 1/1 安全需求 + 3 項 out-of-band 需求皆有對應測試（100%）**；REQ_008 三個資料擷取任務已解除先前的部分符合狀態，餘下限制見下方說明。
 
 ## 四、程式碼覆蓋率細節（低於 90% 之模組）
 

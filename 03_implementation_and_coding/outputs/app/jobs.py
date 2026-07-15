@@ -8,15 +8,65 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+from collections.abc import Callable
 
 from sqlalchemy import select
 
-from app.db_models import Company
+from app.db_models import Company, JobRun
 from app.db_session import SessionLocal
 from app.ingestion import alpha_vantage_client, mops_client, sec_edgar_client, twse_price_client
 from app.ingestion.normalizer import upsert_financial_report, upsert_price_point
 
 logger = logging.getLogger(__name__)
+
+
+def _record_job_run(
+    task_name: str, status: str, trigger_mode: str, started_at: dt.datetime, detail: str | None
+) -> None:
+    """REQ_013：將任務最新一次執行結果 upsert 至 job_runs（每個任務僅保留最新一筆）。"""
+    session = SessionLocal()
+    try:
+        run = session.get(JobRun, task_name)
+        finished_at = dt.datetime.now(dt.UTC)
+        if run is None:
+            run = JobRun(
+                task_name=task_name,
+                status=status,
+                trigger_mode=trigger_mode,
+                started_at=started_at,
+                finished_at=finished_at,
+                detail=detail,
+            )
+            session.add(run)
+        else:
+            run.status = status
+            run.trigger_mode = trigger_mode
+            run.started_at = started_at
+            run.finished_at = finished_at
+            run.detail = detail
+        session.commit()
+    finally:
+        session.close()
+
+
+def track_job(task_name: str, fn: Callable[[], None]) -> Callable[..., None]:
+    """REQ_013：包裝任務函式，執行完成後將成功/失敗結果記錄至 job_runs，供 /admin 頁面查詢。
+
+    APScheduler 依排程觸發時不帶參數（trigger_mode 預設 'scheduled'）；手動觸發端點
+    （app/routers/admin.py）呼叫時會帶入 kwargs={"trigger_mode": "manual"}。
+    """
+
+    def _wrapped(trigger_mode: str = "scheduled") -> None:
+        started_at = dt.datetime.now(dt.UTC)
+        try:
+            fn()
+        except Exception as exc:  # noqa: BLE001 - 需捕捉以記錄失敗狀態，不讓排程執行緒中斷後失去紀錄
+            logger.exception("排程任務 %s 執行失敗", task_name)
+            _record_job_run(task_name, "failure", trigger_mode, started_at, str(exc)[:1000])
+            return
+        _record_job_run(task_name, "success", trigger_mode, started_at, None)
+
+    return _wrapped
 
 
 def _last_completed_fiscal_quarter(today: dt.date) -> tuple[int, int]:

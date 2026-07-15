@@ -119,6 +119,31 @@
 - **可用 task 值**：`mops_ingest`（台股）、`sec_edgar_ingest`（美股財報）、`price_ingest`（股價）、`model_retrain`、`weekly_predict`、`weekly_backtest`
 - **回應** `202 Accepted`：任務已排入佇列
 - **權限不足**：`403 Forbidden`
+- **REQ_013 追加**：手動觸發之執行結果會以 `trigger_mode: "manual"` 記錄於 `job_runs`（見下方 `GET /admin/jobs`），與排程自動觸發（`trigger_mode: "scheduled"`）區分
+
+### GET /api/v1/admin/jobs
+- **說明**：列出目前排程中的 6 個任務、下次排定執行時間，以及最新一次執行結果（對應 REQ_013，需 `admin` scope）
+- **回應** `200 OK`：
+```json
+[
+  {
+    "id": "mops_ingest",
+    "next_run_time": "2026-07-20T00:00:00+08:00",
+    "last_run": {
+      "status": "failure",
+      "trigger_mode": "manual",
+      "started_at": "2026-07-15T10:00:00+00:00",
+      "finished_at": "2026-07-15T10:00:03+00:00",
+      "detail": "TWSE OpenAPI 逾時"
+    }
+  }
+]
+```
+- **`last_run`**：`null` 表示該任務尚未執行過（`job_runs` 每個任務僅保留最新一筆，非歷史記錄）
+- **權限不足**：`403 Forbidden`
+
+### GET /admin
+- **說明**：排程執行狀況頁面（REQ_013），與 `/dashboard` 分開之獨立靜態頁面，需具 `admin` scope 之 API Key 才能查看/操作內容（頁面本身不需驗證，驗證發生在頁面對 `/api/v1/admin/*` 的呼叫）。提供 6 個任務的狀態表格與「立即執行」手動觸發按鈕。
 
 ## 三、免責聲明（所有回應皆應附帶）
 
