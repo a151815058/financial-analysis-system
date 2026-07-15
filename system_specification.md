@@ -115,10 +115,19 @@ _(SHA-256 驗證結果待 Phase 05 部署完成後同步)_
 | 建置完整性 | `05_deployment/outputs/build_manifest.json`（33 檔 SHA-256，已重新驗證一致） |
 | 數位簽章 | 未執行（本環境無簽章憑證），以 SHA-256 作為替代完整性驗證，詳見 `signature_status.json` |
 
-> ⚠️ **驗證限制**：本機環境未安裝 Docker/nginx/PostgreSQL，上述組態檔案**已產出但未經實際建置/執行驗證**。已驗證項目：應用程式（非容器化）健康檢查通過、SHA-256 完整性比對一致、Git pre-commit 密鑰掃描 hook 實測攔截有效。詳見 `05_deployment/outputs/deployment_topology.md`。
+> ⚠️ **驗證限制**：本機環境仍未安裝 Docker/nginx，容器化與反向代理組態**已產出但未經實際建置/執行驗證**。**PostgreSQL 部分已於 2026-07-15 補做真實驗證**：使用者提供真實 Supabase PostgreSQL，`db_schema.sql` 實際套用成功（7 表）、真實資料讀寫與 app 端 `/health`+API 驗證皆通過。已驗證項目：應用程式（非容器化）健康檢查通過、SHA-256 完整性比對一致、Git pre-commit 密鑰掃描 hook 實測攔截有效、PostgreSQL 實際連線與 schema 套用。詳見 `05_deployment/outputs/deployment_topology.md`、`deployment_config.md`。
 
-#### 附錄 B：維運需求
-_(待 Phase 06 完成後自動同步)_
+#### 附錄 B：維運需求（Phase 06，2026-07-15 第一輪）
+
+| 項目 | 內容 |
+| :--- | :--- |
+| 觸發情境 | 使用者提供真實 Supabase PostgreSQL 連線與 Alpha Vantage API Key，對台積電(2330)、Apple(AAPL) 執行真實外部資料擷取（MOPS/TWSE/SEC EDGAR/Alpha Vantage） |
+| 發現並修復之熱修補 | 3 項（HF-001：MOPS 端點 404 改用 TWSE OpenAPI 重寫；HF-002：SEC EDGAR 單季/累計數字混淆；HF-003：Alpha Vantage `outputsize=full` 免費層級限制），詳見 `06_maintenance/outputs/hotfix_log.md` |
+| 回歸測試 | 71 項全數通過（62 單元/整合 + 9 系統整合），覆蓋率 92%，詳見 `06_maintenance/outputs/regression_test_report.md` |
+| 安全回歸 | Bandit 0 HIGH/MEDIUM、依賴掃描 0 已知漏洞（專案實際 21 個相依套件範圍），較歷史分數未下降，詳見 `06_maintenance/outputs/security_trend.md` |
+| 監控設計 | 資料擷取排程健康度、API 稽核事件、模型預測準確率追蹤三項指標，皆基於 `audit_logs`/`predictions`/`prediction_backtests` 表之 SQL 查詢定義（本環境無 APM 平台），詳見 `06_maintenance/outputs/monitoring_dashboard.md` |
+| 已知缺口 | `predictions`/`prediction_backtests` 表尚無真實資料（模型尚未對真實擷取資料執行）；`operating_cash_flow`（兩市場）與美股 `pe_ratio` 因免費資料來源限制長期為 `None`，非系統錯誤 |
+| 框架回饋 | 新發現 1 項框架腳本瑕疵（`run_security_scan.py` 靜默假通過），已記錄至根目錄 `待辦事項.md` #8，未直接修改框架 |
 
 #### 附錄 B-1：內部分析儀表板（FEAT_010，Phase 05 之後追加）
 
@@ -142,6 +151,7 @@ _(待 Phase 06 完成後自動同步)_
 | 2026-07-14 | 04（測試驗證） | v0.5 | 新增 9 項系統整合測試（真實 HTTP），共 58 項測試全數通過，覆蓋率 92.5%；執行 DAST 等效測試無 Critical/High 風險；發現並修復 BUG_001；Evaluator 通過（98 分）；建立 Phase 04 Baseline；Phase 05 解鎖 |
 | 2026-07-14 | 05（部署發布） | v0.6 | 決策：PostgreSQL + Docker；產出 Dockerfile/docker-compose/nginx.conf/SBOM/build_manifest；因環境無 Docker 未實際建置驗證，如實記錄於評分（加權總分 66，部署安全子項 90% 通過安全關卡）；建立 Phase 05 Baseline；Phase 06 解鎖 |
 | 2026-07-14 | 05+（範疇外追加，Phase 06 前） | v0.7 | 新增 FEAT_010 內部分析儀表板（`/dashboard`），文字+圖表呈現財務指標/股價/預測/回測；Chrome headless+Puppeteer 實際驗證 light/dark mode 與互動；新增 3 項自動化測試（共 52 項）；未走完整 Phase 02 UI 設計流程，屬使用者要求之輕量追加 |
+| 2026-07-15 | 06（維護與營運，第一輪） | v0.8 | 使用者提供真實 Supabase PostgreSQL 與 Alpha Vantage API Key，對台積電/Apple 執行真實外部資料擷取；發現並修復 3 項熱修補（HF-001/002/003）；補做 Phase 05 資料庫真實驗證（evaluator_score.availability_check 18→22，weighted_total 66→70）；71 項回歸測試全數通過；安全回歸 100%（未下降）；產出監控儀表板設計；新發現框架瑕疵回饋至 `待辦事項.md` #8 |
 
 ## 【第二部分：機器執行區】
 

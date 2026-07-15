@@ -1,7 +1,7 @@
 {
   "project": "financial-analysis-system",
   "current_role": "developer",
-  "last_updated": "2026-07-14T05:15:00",
+  "last_updated": "2026-07-15T00:00:00",
   "phases": {
     "01_planning_and_analysis": {
       "status": "completed",
@@ -34,13 +34,22 @@
     "05_deployment": {
       "status": "completed",
       "deployment_verified_in_real_infra": false,
+      "database_verified_in_real_infra": true,
       "baseline": "baseline/phase-05/baseline-v1/",
-      "evaluator_score": { "config_baseline_integrity": 27, "availability_check": 18, "signature_verification": 6, "config_correctness": 6, "deployment_security": 9, "weighted_total": 66 },
-      "note": "本環境無 Docker/nginx/PostgreSQL，組態已產出但未實際建置/執行驗證，分數如實反映現況。部署安全子項 9/10=90% 已達 min_security_score(70%) 安全關卡。",
+      "evaluator_score": { "config_baseline_integrity": 27, "availability_check": 22, "signature_verification": 6, "config_correctness": 6, "deployment_security": 9, "weighted_total": 70 },
+      "note": "本環境仍無 Docker/nginx，容器化組態未實際建置/執行驗證。PostgreSQL 部分已於 2026-07-15 補做真實驗證（Supabase：schema 套用 + 真實資料讀寫 + app 端 /health 與 API 驗證），availability_check 由 18 上修至 22（滿分30）反映此進展，容器編排/反向代理部分仍未驗證故未給滿分。部署安全子項 9/10=90% 已達 min_security_score(70%) 安全關卡。",
+      "rescored_at": "2026-07-15T00:00:00",
       "completed_at": "2026-07-14T04:45:00",
       "ssot_integrity_checked": true
     },
-    "06_maintenance": { "status": "in_progress", "baseline": null, "completed_at": null }
+    "06_maintenance": {
+      "status": "completed",
+      "baseline": "baseline/phase-06/baseline-v1/",
+      "evaluator_score": { "regression_completeness": 30, "monitoring_effectiveness": 19, "incident_extraction_accuracy": 21, "output_verification": 10, "security_maintenance": 10, "weighted_total": 90 },
+      "note": "第一輪維護週期：真實外部資料擷取觸發 3 項熱修補（HF-001/002/003），71 項回歸測試全數通過，安全回歸 100%（未下降）。監控有效性與錯誤萃取準確性未達滿分，因監控為 SQL 查詢設計而非實際運作中的 APM 平台、根因分析整併於 hotfix_log.md 而非獨立 incident_report.md，詳見 baseline MANIFEST.md。",
+      "completed_at": "2026-07-15T00:00:00",
+      "ssot_integrity_checked": true
+    }
   },
   "out_of_band_additions": [
     {
@@ -79,6 +88,12 @@
         "score_pct": 90,
         "report": "05_deployment/outputs/security_deployment_checklist.md",
         "note": "Secret 管理/網路隔離/安全標頭已落實並實測（pre-commit hook）；TLS 憑證與備份排程待實際部署環境"
+      },
+      "06_maintenance": {
+        "checked_at": "2026-07-15T00:00:00",
+        "score_pct": 100,
+        "report": "06_maintenance/outputs/security_trend.md",
+        "note": "框架 run_security_scan.py 靜默假通過（待辦事項.md #8），改手動以 python -m bandit / python -m pip_audit 執行；0 HIGH/MEDIUM，專案實際相依套件 0 已知漏洞"
       }
     }
   },
@@ -88,9 +103,9 @@
   "guided_workflow": {
     "enabled": true,
     "current_phase": "06_maintenance",
-    "current_step": 1,
-    "completed_steps": ["01:1_目標確認", "01:2_輸入確認", "01:3_skill選取(略)", "01:4_輸出定義", "01:5_執行完成", "02:1_目標確認(OI-001確認)", "02:2_輸入確認", "02:3_skill選取(略)", "02:4_輸出定義", "02:5_執行完成", "03:1_目標確認", "03:2_輸入確認", "03:3_skill選取(略)", "03:4_輸出定義", "03:5_執行完成", "04:1_目標確認", "04:2_輸入確認", "04:3_skill選取(略)", "04:4_輸出定義", "04:5_執行完成", "05:1_目標確認(DB+部署方式確認)", "05:2_輸入確認", "05:3_skill選取(略)", "05:4_輸出定義", "05:5_執行完成"],
+    "current_step": 5,
+    "completed_steps": ["01:1_目標確認", "01:2_輸入確認", "01:3_skill選取(略)", "01:4_輸出定義", "01:5_執行完成", "02:1_目標確認(OI-001確認)", "02:2_輸入確認", "02:3_skill選取(略)", "02:4_輸出定義", "02:5_執行完成", "03:1_目標確認", "03:2_輸入確認", "03:3_skill選取(略)", "03:4_輸出定義", "03:5_執行完成", "04:1_目標確認", "04:2_輸入確認", "04:3_skill選取(略)", "04:4_輸出定義", "04:5_執行完成", "05:1_目標確認(DB+部署方式確認)", "05:2_輸入確認", "05:3_skill選取(略)", "05:4_輸出定義", "05:5_執行完成", "06:1_目標確認", "06:2_輸入確認(deployment_config.md補產出)", "06:3_skill選取(不額外載入)", "06:4_輸出定義", "06:5_執行完成(第一輪)"],
     "started_at": "2026-07-14T00:00:00",
-    "last_active": "2026-07-14T04:45:00"
+    "last_active": "2026-07-15T00:00:00"
   }
 }

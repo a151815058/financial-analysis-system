@@ -103,6 +103,20 @@
 - **未走完整 SSDLC 順序**：正常應先在 Phase 02 補設計文件再到 Phase 03 實作，但此為使用者要求之範疇外輕量追加，未建立獨立 Baseline，僅於 `traceability_matrix.md`（新增 REQ_010）、`system_specification.md`（新增 FEAT_010 + 附錄 B-1）、`executable_spec.yaml`（新增 `feature_010_dashboard` 區塊）、`phase_gates.json`（新增 `out_of_band_additions` 區塊）中完整記錄，維持追溯完整性但不假裝走了完整 PDCA。
 - 下一步：使用者尚未決定是否/何時繼續 Phase 06（維護與營運）。
 
+### 2026-07-14 — Session 1（續）：儀表板現場展示 + 真實資料串接請求（待續，未執行）
+
+- 使用者要求在瀏覽器實際打開儀表板查看：以本機 Chrome（非無頭模式）開啟真實視窗，並灌入 2 家示範公司（台積電 2330、Apple AAPL）的假資料供操作展示。使用者確認看到的是假資料。
+- 使用者詢問台積電目前股價資料抓到哪個時間點 → 回覆當時示範資料範圍為 2026-04-01 ~ 2026-06-29（假資料），並誠實說明：資料擷取管線（`mops_client.py`）尚未實際串接到 admin 觸發端點，目前系統完全沒有真實資料。
+- 使用者接著要求：① 測試環境改用 PostgreSQL（非 SQLite）② 開始抓「正式資料」（真實 MOPS/股價）。
+- AI 提出兩個關鍵決策問題：PostgreSQL 安裝方式（本機未偵測到 PostgreSQL 或 Docker）、真實資料範圍（現有系統僅有 MOPS 台股財報擷取邏輯，**沒有台股股價的真實資料來源**——Alpha Vantage 僅適用美股，需新增 TWSE 價格擷取模組）。
+- 使用者回答：PostgreSQL 由使用者自行安裝/提供連線資訊；資料範圍先聚焦「台積電股價歷史（需新增 TWSE 來源）」。
+- **待續，尚未執行**：使用者接著說「明天繼續用」，本次 session 到此暫停。**下次接續時**：
+  1. 待使用者提供 PostgreSQL 連線資訊（host/port/user/password/db name），更新 `DATABASE_URL` 並實際驗證連線（`db_schema.sql` 為 Postgres 語法，可直接執行）。
+  2. 新增 TWSE 股價擷取模組（`app/ingestion/twse_price_client.py` 或類似命名），使用 TWSE 官方公開 API（如 `https://www.twse.com.tw/exchangeReport/STOCK_DAY` 或 `openapi.twse.com.tw`），比照現有 `mops_client.py`/`alpha_vantage_client.py` 的批次隔離失敗與 retry 設計模式。
+  3. 實際對台積電（2330）執行一次真實 MOPS 財報擷取 + TWSE 股價擷取，寫入 PostgreSQL，並在儀表板上以真實資料重新驗證。
+  4. 提醒：對外部公開網站（MOPS/TWSE）發送真實請求時，需注意請求頻率與 User-Agent 標示，避免對外部服務造成負擔（見 `formal_requirements.md` 業務規則：僅使用公開合法資料來源，不得違反其使用條款）。
+- 本機 demo 伺服器（含 2 家假資料公司）與瀏覽器視窗於本次 session 結束時仍在背景執行，供使用者持續操作展示用；下次 session 開始時應先確認是否仍需要，或關閉並改接真實資料源。
+
 ## 關鍵決策記錄
 
 | 時間 | 決策 | 理由 |
