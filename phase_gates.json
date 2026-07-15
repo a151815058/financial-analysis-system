@@ -67,6 +67,14 @@
       "note": "使用者要求於既有系統上追加「新增公司」功能並依 SSDLC 規劃。建立在先前 out-of-band 的 HF-004（companies.cik 欄位）之上；一併補完 mops_ingest/sec_edgar_ingest/price_ingest 三個排程任務的真實擷取邏輯（weekly_predict/model_retrain/weekly_backtest 三個模型類任務仍為 stub，不在本次範圍）。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
       "tests_added": 23,
       "total_tests": 75
+    },
+    {
+      "id": "REQ_012",
+      "name": "新增公司代碼/名稱模糊搜尋（GET /api/v1/companies/search）",
+      "added_at": "2026-07-15T01:00:00",
+      "note": "REQ_011 之延伸使用者回饋：新增公司時股票代碼與公司名稱擇一輸入即可，並支援模糊（字串包含）搜尋。台股重用既有 TWSE 損益表端點、美股重用既有 SEC ticker 對照表作為目錄，未新增外部資料依賴。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
+      "tests_added": 11,
+      "total_tests": 86
     }
   ],
   "phase_baseline_enabled": true,

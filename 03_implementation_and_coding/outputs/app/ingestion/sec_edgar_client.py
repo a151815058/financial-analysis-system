@@ -170,30 +170,55 @@ def compute_pe_ratio(price_at_report_date: float | None, ttm_eps: float | None) 
 
 
 # ---------------------------------------------------------------------------
-# Ticker → CIK 自動查詢（REQ_011：新增美股公司時，未提供 CIK 之自動補全）
+# Ticker → CIK/名稱 目錄（REQ_011：新增美股公司時 CIK 自動補全；REQ_012：新增公司模糊搜尋）
 # ---------------------------------------------------------------------------
 
 TICKER_TO_CIK_URL = "https://www.sec.gov/files/company_tickers.json"
 
-_ticker_cik_cache: dict[str, str] | None = None
+_ticker_directory_cache: dict[str, dict] | None = None
 
 
-def _load_ticker_cik_map() -> dict[str, str]:
-    """下載並快取 SEC 官方 ticker→CIK 對照表（固定白名單 URL，模組層級快取避免重複下載）。"""
-    global _ticker_cik_cache
-    if _ticker_cik_cache is None:
+def _load_ticker_directory() -> dict[str, dict]:
+    """下載並快取 SEC 官方 ticker→{cik, name} 對照表（固定白名單 URL，模組層級快取避免重複下載）。"""
+    global _ticker_directory_cache
+    if _ticker_directory_cache is None:
         headers = {"User-Agent": settings.sec_edgar_user_agent}
         payload = get_with_retry(TICKER_TO_CIK_URL, headers=headers).json()
-        _ticker_cik_cache = {
-            str(entry["ticker"]).upper(): str(entry["cik_str"]).zfill(10) for entry in payload.values()
+        _ticker_directory_cache = {
+            str(entry["ticker"]).upper(): {
+                "cik": str(entry["cik_str"]).zfill(10),
+                "name": str(entry["title"]),
+            }
+            for entry in payload.values()
         }
-    return _ticker_cik_cache
+    return _ticker_directory_cache
 
 
 def lookup_cik(ticker: str) -> str | None:
     """依 ticker 查詢 CIK；查詢失敗（網路/格式異常）視為查無結果，交由呼叫端要求使用者手動輸入。"""
     try:
-        cik_map = _load_ticker_cik_map()
+        directory = _load_ticker_directory()
     except ExternalSourceError:
         return None
-    return cik_map.get(ticker.upper())
+    entry = directory.get(ticker.upper())
+    return entry["cik"] if entry else None
+
+
+def search_companies(query: str, limit: int = 20) -> list[dict]:
+    """REQ_012：依 ticker 或公司名稱模糊查詢（大小寫不敏感之字串包含比對，非編輯距離模糊比對）。
+
+    查詢失敗（網路/格式異常）視為查無結果，回傳空清單，不中斷新增公司流程。
+    """
+    query_norm = query.strip().upper()
+    if not query_norm:
+        return []
+    try:
+        directory = _load_ticker_directory()
+    except ExternalSourceError:
+        return []
+    results = [
+        {"ticker": ticker, "name": entry["name"], "market": "US"}
+        for ticker, entry in directory.items()
+        if query_norm in ticker or query_norm in entry["name"].upper()
+    ]
+    return results[:limit]

@@ -12,8 +12,10 @@ from app.audit import record as record_audit
 from app.auth import AuthContext, require_admin_scope, require_api_key
 from app.db_models import Company, FinancialReport, PriceHistory
 from app.db_session import get_session
+from app.ingestion.mops_client import search_companies as search_tw_companies
 from app.ingestion.sec_edgar_client import lookup_cik
-from app.schemas import CompanyCreateRequest, CompanyOut, FinancialsResponse, PricesResponse
+from app.ingestion.sec_edgar_client import search_companies as search_us_companies
+from app.schemas import CompanyCreateRequest, CompanyOut, CompanySearchResult, FinancialsResponse, PricesResponse
 
 CURRENCY_BY_MARKET = {"TW": "TWD", "US": "USD"}
 
@@ -81,6 +83,18 @@ def create_company(
         detail={"ticker": payload.ticker, "market": payload.market, "cik": cik},
     )
     return company
+
+
+@router.get("/search", response_model=list[CompanySearchResult])
+def search_companies(
+    market: str = Query(pattern="^(TW|US)$"),
+    q: str = Query(min_length=1, max_length=100),
+    auth: AuthContext = Depends(require_api_key),
+) -> list[dict]:
+    """REQ_012：依代碼或名稱模糊查詢，供新增公司 UI 之搜尋建議使用（不需 admin scope，僅查詢無副作用）。"""
+    if market == "TW":
+        return search_tw_companies(q)
+    return search_us_companies(q)
 
 
 @router.get("", response_model=list[CompanyOut])

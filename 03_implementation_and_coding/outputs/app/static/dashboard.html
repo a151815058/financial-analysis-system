@@ -45,13 +45,15 @@
           <label><input type="radio" name="market" value="US"> 美股</label>
         </div>
       </div>
-      <div class="field">
+      <div class="field search-field">
         <label for="add-ticker">股票代號 / Ticker</label>
         <input type="text" id="add-ticker" required autocomplete="off">
       </div>
-      <div class="field">
-        <label for="add-name">公司名稱</label>
+      <div class="field search-field">
+        <label for="add-name">公司名稱（輸入代碼或名稱皆可搜尋，擇一填寫即可）</label>
         <input type="text" id="add-name" required autocomplete="off">
+        <div class="search-results" id="add-search-results" hidden></div>
+        <div class="field-hint">搜尋比對的是正式登記名稱，若輸入常用簡稱查無結果，可直接手動填寫代碼與名稱。</div>
       </div>
       <div class="field">
         <label for="add-industry">產業（可選）</label>

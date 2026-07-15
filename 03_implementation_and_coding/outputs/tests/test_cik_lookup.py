@@ -1,9 +1,9 @@
-"""REQ_011：美股新增公司時之 SEC ticker→CIK 自動查詢。"""
+"""REQ_011：美股新增公司時之 SEC ticker→CIK 自動查詢。REQ_012：ticker/名稱模糊搜尋。"""
 
 from __future__ import annotations
 
 from app.ingestion.http_utils import ExternalSourceError
-from app.ingestion.sec_edgar_client import lookup_cik
+from app.ingestion.sec_edgar_client import lookup_cik, search_companies
 
 
 class FakeResponse:
@@ -21,7 +21,7 @@ TICKERS_JSON = {
 
 
 def _reset_cache(monkeypatch):
-    monkeypatch.setattr("app.ingestion.sec_edgar_client._ticker_cik_cache", None)
+    monkeypatch.setattr("app.ingestion.sec_edgar_client._ticker_directory_cache", None)
 
 
 def test_lookup_cik_finds_known_ticker(monkeypatch):
@@ -63,3 +63,37 @@ def test_lookup_cik_caches_after_first_successful_call(monkeypatch):
     lookup_cik("AAPL")
     lookup_cik("MSFT")
     assert len(calls) == 1
+
+
+def test_search_companies_matches_by_ticker_substring(monkeypatch):
+    _reset_cache(monkeypatch)
+    monkeypatch.setattr(
+        "app.ingestion.sec_edgar_client.get_with_retry", lambda *a, **k: FakeResponse(TICKERS_JSON)
+    )
+    results = search_companies("APL")
+    assert [r["ticker"] for r in results] == ["AAPL"]
+    assert results[0]["market"] == "US"
+
+
+def test_search_companies_matches_by_name_substring_case_insensitive(monkeypatch):
+    _reset_cache(monkeypatch)
+    monkeypatch.setattr(
+        "app.ingestion.sec_edgar_client.get_with_retry", lambda *a, **k: FakeResponse(TICKERS_JSON)
+    )
+    results = search_companies("microsoft")
+    assert [r["ticker"] for r in results] == ["MSFT"]
+
+
+def test_search_companies_returns_empty_list_for_blank_query(monkeypatch):
+    _reset_cache(monkeypatch)
+    assert search_companies("   ") == []
+
+
+def test_search_companies_returns_empty_list_on_network_failure(monkeypatch):
+    _reset_cache(monkeypatch)
+
+    def _raise(*a, **k):
+        raise ExternalSourceError("boom")
+
+    monkeypatch.setattr("app.ingestion.sec_edgar_client.get_with_retry", _raise)
+    assert search_companies("AAPL") == []

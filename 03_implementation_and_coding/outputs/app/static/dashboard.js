@@ -572,11 +572,15 @@ const addCompanyOverlay = $("#add-company-overlay");
 const addCompanyForm = $("#add-company-form");
 const addCompanyMsg = $("#add-company-msg");
 const addCikField = $("#add-cik-field");
+const addSearchResults = $("#add-search-results");
+const addTickerInput = $("#add-ticker");
+const addNameInput = $("#add-name");
 
 function openAddCompanyModal() {
   addCompanyMsg.innerHTML = "";
   addCompanyForm.reset();
   addCikField.hidden = true;
+  hideSearchResults();
   addCompanyOverlay.hidden = false;
 }
 
@@ -590,6 +594,70 @@ function showAddCompanyError(msg) {
 
 $("#add-company-btn").addEventListener("click", openAddCompanyModal);
 $("#add-company-cancel").addEventListener("click", closeAddCompanyModal);
+
+// ---------------------------------------------------------------------------
+// Add company modal — 代碼/名稱模糊搜尋（REQ_012）
+// ---------------------------------------------------------------------------
+
+function hideSearchResults() {
+  addSearchResults.hidden = true;
+  addSearchResults.innerHTML = "";
+}
+
+function debounce(fn, delayMs) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delayMs);
+  };
+}
+
+function renderSearchResults(results) {
+  if (results.length === 0) {
+    addSearchResults.innerHTML = `<div class="empty">查無符合的公司，可直接手動填寫代碼與名稱。</div>`;
+  } else {
+    addSearchResults.innerHTML = results
+      .map(
+        (r) =>
+          `<div class="result-item" data-ticker="${escapeHtml(r.ticker)}" data-name="${escapeHtml(r.name)}">` +
+          `<span class="ticker">${escapeHtml(r.ticker)}</span><span class="name">${escapeHtml(r.name)}</span></div>`
+      )
+      .join("");
+    addSearchResults.querySelectorAll(".result-item").forEach((el) => {
+      el.addEventListener("click", () => {
+        addTickerInput.value = el.dataset.ticker;
+        addNameInput.value = el.dataset.name;
+        hideSearchResults();
+      });
+    });
+  }
+  addSearchResults.hidden = false;
+}
+
+const runCompanySearch = debounce(async (query) => {
+  if (!state.apiKey || query.trim().length === 0) {
+    hideSearchResults();
+    return;
+  }
+  try {
+    const market = addCompanyForm.market.value;
+    const results = await apiGet("/api/v1/companies/search", { market, q: query });
+    renderSearchResults(results);
+  } catch (e) {
+    hideSearchResults();
+  }
+}, 300);
+
+addTickerInput.addEventListener("input", (e) => runCompanySearch(e.target.value));
+addNameInput.addEventListener("input", (e) => runCompanySearch(e.target.value));
+
+addCompanyForm.querySelectorAll('input[name="market"]').forEach((radio) => {
+  radio.addEventListener("change", hideSearchResults);
+});
+
+document.addEventListener("click", (ev) => {
+  if (!addSearchResults.hidden && !ev.target.closest(".search-field")) hideSearchResults();
+});
 addCompanyOverlay.addEventListener("click", (ev) => {
   if (ev.target === addCompanyOverlay) closeAddCompanyModal();
 });

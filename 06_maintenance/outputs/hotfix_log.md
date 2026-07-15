@@ -35,11 +35,21 @@
 - **驗證**：`tests/test_alpha_vantage_client.py` 新增 1 項測試；以 Apple 真實資料驗證 `compact` 模式成功寫入 100 筆真實股價（2026-02-19 ~ 2026-07-14）
 - **狀態**：✅ 已修復並驗證
 
+## HF-004：`migrations/002_add_companies_cik.sql` 已 commit 但從未實際套用至正式 Supabase，導致 REQ_011 上線後 `/api/v1/companies` 全面 500
+
+- **發現方式**：REQ_011（新增追蹤公司 UI/API）開發完成、單元測試全數通過後，實際以真實 `DATABASE_URL`（Supabase）啟動本機服務進行儀表板人工驗證，呼叫 `GET /api/v1/companies` 時發現 `500 Internal Server Error`
+- **根本原因**：`app/db_models.py` 的 `Company` ORM 已宣告 `cik` 欄位（本次 REQ_011 隨 `migrations/002_add_companies_cik.sql` 一併 commit），但該 migration 檔案本身只是「產出」，從未真的對正式 Supabase 資料庫執行過 `ALTER TABLE`；ORM 期待的欄位與資料庫實際 schema 不一致，任何查詢 `companies` 表的請求皆因 `psycopg.errors.UndefinedColumn: column companies.cik does not exist` 而失敗
+- **影響範圍**：所有會查詢 `companies` 表的端點（`GET/POST /api/v1/companies`、`.../financials`、`.../prices` 等，凡經過 `Company` model 的查詢皆受影響）
+- **修補方案**：直接對正式 Supabase 執行 `migrations/002_add_companies_cik.sql`（`ALTER TABLE companies ADD COLUMN IF NOT EXISTS cik VARCHAR(10)` + 回填 Apple 既有 CIK `0000320193`），冪等、僅新增可為 NULL 欄位，無資料流失風險
+- **驗證**：套用後重新呼叫 `GET /api/v1/companies` 恢復 `200 OK`，回傳既有台積電(2330)、Apple(AAPL) 兩筆真實資料；直接查詢資料庫確認 Apple 的 `cik` 已正確回填為 `0000320193`
+- **經驗教訓**：`migrations/` 目錄下的 SQL 檔案僅代表「已撰寫」，不代表「已套用」；後續若在 `db_models.py` 新增/變更欄位並隨 PR 一併 commit 對應 migration，**必須在合併後立即對目標資料庫執行**，而非僅仰賴檔案存在
+- **狀態**：✅ 已修復並驗證（2026-07-15，REQ_011 上線驗證時發現並當場修復）
+
 ## 修補統計
 
 | 項目 | 數量 |
 | :--- | :--- |
-| 修補模組數 | 3（`mops_client.py`、`sec_edgar_client.py`、`alpha_vantage_client.py`） |
-| 相關測試現況 | `test_mops_client.py` 5 項（全改寫）、`test_sec_edgar_mapping.py` 8 項（5 既有 + 3 新增）、`test_alpha_vantage_client.py` 4 項（3 既有 + 1 新增） |
-| 影響資料正確性等級 | HF-002 為 B 類（可能導致寫入資料庫的財務數字錯誤，非僅程式異常），HF-001/HF-003 為 A 類（連線失敗/錯誤訊息不明確，未寫入錯誤資料） |
-| 是否已影響正式資料庫 | 是——修復前 HF-001 曾嘗試寫入失敗（未寫入，因例外中斷交易，Supabase 無髒資料）；HF-002/HF-003 於修復後才首次執行擷取，故 Supabase 中無誤植資料 |
+| 修補模組數 | 4（`mops_client.py`、`sec_edgar_client.py`、`alpha_vantage_client.py`、正式 Supabase `companies` 表 schema） |
+| 相關測試現況 | `test_mops_client.py` 5 項（全改寫）、`test_sec_edgar_mapping.py` 8 項（5 既有 + 3 新增）、`test_alpha_vantage_client.py` 4 項（3 既有 + 1 新增）、HF-004 屬環境/部署缺陷非程式邏輯缺陷，無新增單元測試對應（已有 `test_api_companies.py` 涵蓋 ORM 查詢邏輯本身） |
+| 影響資料正確性等級 | HF-002 為 B 類（可能導致寫入資料庫的財務數字錯誤，非僅程式異常），HF-001/HF-003/HF-004 為 A 類（連線失敗/錯誤訊息不明確/schema 未同步，皆未寫入錯誤資料） |
+| 是否已影響正式資料庫 | 是——修復前 HF-001 曾嘗試寫入失敗（未寫入，因例外中斷交易，Supabase 無髒資料）；HF-002/HF-003 於修復後才首次執行擷取，故 Supabase 中無誤植資料；HF-004 修復即為對正式 Supabase 執行 schema 變更（新增可為 NULL 欄位，無資料流失） |

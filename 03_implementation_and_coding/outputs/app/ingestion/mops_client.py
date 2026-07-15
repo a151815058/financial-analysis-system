@@ -127,3 +127,47 @@ def fetch_batch(
 
     _, failed = run_batch_isolated(tickers, _fetch_one)
     return results, failed
+
+
+# ---------------------------------------------------------------------------
+# 台股公司代碼/名稱目錄（REQ_012：新增公司模糊搜尋）
+# ---------------------------------------------------------------------------
+# 重用既有綜合損益表端點（本身即涵蓋全體上市一般業公司），僅取「公司代號」/「公司名稱」兩欄
+# 作為目錄使用，不解析財報數字，避免多引入一個外部資料來源。
+
+_tw_directory_cache: list[dict] | None = None
+
+
+def _load_tw_directory() -> list[dict]:
+    global _tw_directory_cache
+    if _tw_directory_cache is None:
+        rows = get_with_retry(INCOME_STATEMENT_URL).json()
+        _tw_directory_cache = [
+            {"ticker": row["公司代號"], "name": row["公司名稱"]}
+            for row in rows
+            if row.get("公司代號") and row.get("公司名稱")
+        ]
+    return _tw_directory_cache
+
+
+def search_companies(query: str, limit: int = 20) -> list[dict]:
+    """REQ_012：依代碼或名稱模糊查詢（大小寫不敏感之字串包含比對，非編輯距離模糊比對）。
+
+    已知限制：比對對象為公司「正式登記名稱」（如「台灣積體電路製造股份有限公司」），
+    輸入口語簡稱（如「台積電」）若非該正式名稱之連續子字串，將無法比對到，此為字串包含
+    比對法之已知限制，非程式缺陷（誠實揭露，同 REQ_012 clarify 決策）。
+    查詢失敗（網路/格式異常）視為查無結果，回傳空清單，不中斷新增公司流程。
+    """
+    query_norm = query.strip().upper()
+    if not query_norm:
+        return []
+    try:
+        directory = _load_tw_directory()
+    except ExternalSourceError:
+        return []
+    results = [
+        {"ticker": c["ticker"], "name": c["name"], "market": "TW"}
+        for c in directory
+        if query_norm in c["ticker"].upper() or query_norm in c["name"].upper()
+    ]
+    return results[:limit]

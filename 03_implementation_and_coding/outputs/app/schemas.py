@@ -21,6 +21,12 @@ class CompanyOut(BaseModel):
     currency: str
 
 
+class CompanySearchResult(BaseModel):
+    ticker: str
+    name: str
+    market: Market
+
+
 class CompanyCreateRequest(BaseModel):
     ticker: str = Field(min_length=1, max_length=20)
     market: Market

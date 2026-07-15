@@ -17,6 +17,7 @@
 | REQ_SEC_001 | 資安基準（中級） | `security_requirements.md` §五 | `db_schema.sql`(api_keys,audit_logs)<br>`threat_model.md` | `app/auth.py`、`app/audit.py`（含 source_ip 修復）；本次以真實 API Key 驗證 | `tests/test_auth.py`（7）、`04_testing/outputs/dast_report.md`（DAST） | `nginx.conf`（TLS/安全標頭）、`security_deployment_checklist.md`、`signature_status.json` | `06_maintenance/outputs/security_trend.md`（100%，未下降） | `[已驗證]` |
 | REQ_010 | 使用者口述（Phase 05 後追加，Phase 06 前） | 補於本文件 | 無獨立設計文件（沿用既有 API 端點，未另建 UI 雛型） | `app/static/dashboard.{html,css,js}`、`app/main.py`（`/dashboard`、`/static` 掛載） | `tests/test_dashboard.py`（3 項）+ 真實瀏覽器驗證（Chrome headless + Puppeteer，見下方說明）+ 本次以真實瀏覽器視窗顯示台積電/Apple 真實資料 | 隨 app 容器一併部署（無獨立服務） | `06_maintenance/outputs/regression_test_report.md`（`test_dashboard.py` 3 項無回歸） | `[已驗證]` |
 | REQ_011 | 使用者口述（Phase 06 後追加，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(POST /api/v1/companies)<br>`threat_model.md` §三之一 | `app/routers/companies.py`（POST 端點）、`app/schemas.py`（`CompanyCreateRequest`）、`app/ingestion/sec_edgar_client.py`（`lookup_cik`）、`app/jobs.py`（新檔）、`app/static/dashboard.{html,css,js}`（新增公司表單） | `tests/test_api_companies.py`（新增 6 項）、`tests/test_cik_lookup.py`（4 項）、`tests/test_jobs.py`（3 項） | 隨 app 容器一併部署（無獨立服務）；排程任務現會真實呼叫外部 API，見 §五之提醒 | 補於本文件下方「REQ_011 補充說明」 | `[已驗證]` |
+| REQ_012 | 使用者口述（REQ_011 之延伸，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(GET /api/v1/companies/search) | `app/routers/companies.py`(`GET /search`)、`app/ingestion/mops_client.py`(`search_companies`，重用既有損益表端點)、`app/ingestion/sec_edgar_client.py`(`search_companies`，擴充既有 ticker 對照表快取)、`app/static/dashboard.{html,css,js}`（新增公司表單改為代碼/名稱擇一輸入之搜尋建議） | `tests/test_api_companies.py`（新增 3 項）、`tests/test_mops_client.py`（新增 4 項）、`tests/test_cik_lookup.py`（新增 4 項） | 隨 app 容器一併部署（無獨立服務） | 補於本文件下方「REQ_012 補充說明」 | `[已驗證]` |
 
 > 說明：`[不連貫警告]` 為框架標準狀態標記，表示該需求尚未貫穿所有階段。Phase 06（維護與營運）已於 2026-07-15 完成第一輪，REQ_001/002/003/007/SEC_001/010 已因本輪真實資料擷取與熱修補而更新為 `[已驗證]`；REQ_004/005/006/009 仍標記 `[不連貫警告]`，原因是模型預測/回測尚未對真實資料執行（非監控或測試機制缺陷，見 `06_maintenance/outputs/monitoring_dashboard.md`）。REQ_008 已因 REQ_011（同日 out-of-band 追加）補齊 3 個資料擷取任務的真實邏輯而更新為 `[已驗證]`，模型類任務的限制併入 REQ_004/005/006 之既有已知限制範圍，不再視為 REQ_008 本身之缺口。
 >
@@ -67,6 +68,25 @@
   `test_jobs.py` 3 項，另計入既有擴充），全數通過；既有 `04_testing/outputs/test_api.py`（9 項真實
   uvicorn 子行程系統整合測試）於本次異動後重新執行，全數通過，未產生回歸。詳見
   `04_testing/outputs/test_results.md`。
+
+## REQ_012 補充說明：新增公司代碼/名稱模糊搜尋（REQ_011 之延伸）
+
+> 使用者於實際測試 REQ_011「新增公司」功能後提出回饋：股票代碼與公司名稱應可擇一輸入，並支援
+> 模糊搜尋。比照 REQ_010/REQ_011 先例，屬 out-of-band 輕量追加。
+
+- **模糊查詢語意**：確認後採用「字串包含比對（大小寫不敏感）」，非編輯距離（如容錯拼錯字）之
+  真正模糊比對，避免為目前規模（百到千筆候選）不成比例地引入額外演算法庫。
+- **公司目錄來源**：
+  - 美股：重用既有 `sec_edgar_client.py` 為 CIK 自動查詢而快取的 SEC ticker 對照表，擴充為同時
+    保存名稱，未新增外部依賴。
+  - 台股：重用既有 `mops_client.py` 已在呼叫的 TWSE 綜合損益表端點（本身即涵蓋全體上市一般業
+    公司），僅萃取「公司代號」/「公司名稱」兩欄作為目錄，不解析財報數字。
+- **已知限制**：台股比對對象為公司正式登記名稱（如「台灣積體電路製造股份有限公司」），輸入口語
+  簡稱（如「台積電」）若非該名稱之連續子字串，將查無結果；此時使用者可於表單直接手動輸入代碼與
+  名稱，維持既有 REQ_011 手動輸入路徑不受影響。
+- **驗證方式**：新增 11 項自動化測試（`test_mops_client.py`、`test_cik_lookup.py` 各自的
+  `search_companies` 案例、`test_api_companies.py` 之 `GET /search` 端點案例），既有 84 項測試
+  （REQ_011 完成時基準）與新增 11 項共 95 項全數通過，無回歸。
 
 ## 框架瑕疵回饋（詳見根目錄 `待辦事項.md`）
 

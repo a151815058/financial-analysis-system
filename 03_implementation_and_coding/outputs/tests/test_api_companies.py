@@ -157,6 +157,39 @@ def test_create_company_duplicate_returns_409(client, admin_api_key, db_session)
     assert response.status_code == 409
 
 
+def test_search_companies_tw_delegates_to_mops_directory(client, read_api_key, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.companies.search_tw_companies",
+        lambda q: [{"ticker": "2330", "name": "台積電", "market": "TW"}],
+    )
+    response = client.get(
+        "/api/v1/companies/search",
+        params={"market": "TW", "q": "台積"},
+        headers={"X-API-Key": read_api_key},
+    )
+    assert response.status_code == 200
+    assert response.json() == [{"ticker": "2330", "name": "台積電", "market": "TW"}]
+
+
+def test_search_companies_us_delegates_to_sec_directory(client, read_api_key, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.companies.search_us_companies",
+        lambda q: [{"ticker": "AAPL", "name": "Apple Inc.", "market": "US"}],
+    )
+    response = client.get(
+        "/api/v1/companies/search",
+        params={"market": "US", "q": "apple"},
+        headers={"X-API-Key": read_api_key},
+    )
+    assert response.status_code == 200
+    assert response.json() == [{"ticker": "AAPL", "name": "Apple Inc.", "market": "US"}]
+
+
+def test_search_companies_requires_api_key(client):
+    response = client.get("/api/v1/companies/search", params={"market": "TW", "q": "2330"})
+    assert response.status_code == 401
+
+
 def test_create_company_requires_admin_scope(client, read_api_key):
     response = client.post(
         "/api/v1/companies",
