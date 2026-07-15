@@ -21,3 +21,9 @@ def test_dashboard_does_not_require_api_key(client):
     # 頁面本身（HTML/CSS/JS）不需要驗證；驗證發生在頁面內對 API 端點的呼叫
     response = client.get("/dashboard")
     assert response.status_code == 200
+
+
+def test_root_redirects_to_dashboard(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/dashboard"
