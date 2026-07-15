@@ -88,7 +88,9 @@ class BacktestResponse(BaseModel):
 
 
 class IngestTriggerRequest(BaseModel):
-    task: Literal["mops_ingest", "sec_edgar_ingest", "price_ingest", "model_retrain", "weekly_predict"]
+    task: Literal[
+        "mops_ingest", "sec_edgar_ingest", "price_ingest", "model_retrain", "weekly_predict", "weekly_backtest"
+    ]
 
 
 class IngestTriggerResponse(BaseModel):

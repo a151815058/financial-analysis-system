@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, status
+import datetime as dt
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.audit import record as record_audit
@@ -21,14 +24,41 @@ def trigger_ingest(
     session: Session = Depends(get_session),
     auth: AuthContext = Depends(require_admin_scope),
 ) -> IngestTriggerResponse:
-    # 實際排程任務由 app/scheduler.py 之 APScheduler job store 執行；此端點僅負責
-    # 將任務排入佇列並記錄稽核日誌，符合 Generator「只執行、不擴大範圍」原則。
+    # 實際排程任務由 app/scheduler.py 之 APScheduler job store 執行；此端點負責將
+    # 對應任務排入該 job store 立即執行一次（不阻塞本次請求），並記錄稽核日誌。
+    scheduler = request.app.state.scheduler
+    job = scheduler.get_job(payload.task)
+    if job is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"排程中查無任務 {payload.task}")
+
+    scheduler.add_job(
+        job.func,
+        id=f"{payload.task}_manual_{uuid.uuid4().hex[:8]}",
+        next_run_time=dt.datetime.now(),
+    )
+
     record_audit(
         session,
         api_key_id=auth.api_key_id,
         action=f"admin.ingest.trigger.{payload.task}",
         result="SUCCESS",
         source_ip=_client_ip(request),
-        detail={"task": payload.task},
+        detail={"task": payload.task, "mode": "manual"},
     )
     return IngestTriggerResponse(task=payload.task, status="accepted")
+
+
+@router.get("/jobs")
+def list_jobs(
+    request: Request,
+    auth: AuthContext = Depends(require_admin_scope),
+) -> list[dict]:
+    """列出目前排程中的任務與下次執行時間，供本機驗證排程是否已載入/觸發。"""
+    scheduler = request.app.state.scheduler
+    return [
+        {
+            "id": job.id,
+            "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+        }
+        for job in scheduler.get_jobs()
+    ]
