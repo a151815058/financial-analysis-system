@@ -35,6 +35,17 @@
 - 敏感資訊管理：API 金鑰、資料庫憑證一律透過環境變數或密鑰管理服務，不寫入原始碼或版控。
 - 相依套件安全：定期執行 SBOM 掃描（Phase 05），追蹤第三方套件已知漏洞。
 
+## 五之一、REQ_011 追加安全需求（新增公司寫入端點，延伸 REQ_SEC_001）
+
+> out-of-band 追加（2026-07-15），比照 REQ_010 先例，於既有 Phase 完成後補齊。
+
+| 項目 | 說明 |
+| :--- | :--- |
+| 授權範圍 | `POST /api/v1/companies` 為新寫入端點，比照 `POST /api/v1/admin/ingest/trigger`，限 `admin` scope，`read` scope 呼叫須回 `403` |
+| 輸入驗證 | `ticker`/`market`/`name` 皆須經 Pydantic Schema 驗證；`currency` 不採信客戶端輸入，一律依 `market` 伺服器端決定，避免資料不一致 |
+| 重複資料防護 | 依 `(market, ticker)` DB unique constraint 擋重複新增，回應 `409 Conflict` |
+| 外部查詢呼叫安全 | 美股 CIK 自動查詢固定呼叫 SEC 官方公開端點（白名單 URL，非使用者可控輸入），不構成 SSRF 風險 |
+
 ## 五、適用安全構面對照（本專案，中級 medium）
 
 | 構面 | 主要適用階段 | 本專案關聯重點 |

@@ -21,6 +21,14 @@ class CompanyOut(BaseModel):
     currency: str
 
 
+class CompanyCreateRequest(BaseModel):
+    ticker: str = Field(min_length=1, max_length=20)
+    market: Market
+    name: str = Field(min_length=1, max_length=200)
+    industry: str | None = Field(default=None, max_length=100)
+    cik: str | None = Field(default=None, min_length=1, max_length=10)
+
+
 class FinancialReportOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

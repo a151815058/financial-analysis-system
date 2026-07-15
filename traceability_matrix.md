@@ -12,12 +12,13 @@
 | REQ_005 | `inputs/user_requirement_raw.md` | `formal_requirements.md` §REQ_005 | `db_schema.sql`(price_history, predictions.timeseries_model_*) | `app/prediction/timeseries_model.py`；股價真實資料已由 REQ_001/002 補齊（TW 50 筆、US 100 筆） | `tests/test_timeseries_model.py`（4） | 隨 app 容器部署 | `06_maintenance/outputs/monitoring_dashboard.md` | `[不連貫警告]`（模型尚未對真實資料執行） |
 | REQ_006 | Planner 需求分析 | `formal_requirements.md` §REQ_006 | `db_schema.sql`(predictions.ensemble_weight_*)<br>`sequence_diagram.md` | `app/prediction/ensemble.py` | `tests/test_ensemble.py`（4） | 隨 app 容器部署 | `06_maintenance/outputs/monitoring_dashboard.md` | `[不連貫警告]`（模型尚未對真實資料執行） |
 | REQ_007 | 缺口拷問 | `formal_requirements.md` §REQ_007 | `api_spec.md`（6 個查詢端點） | `app/routers/companies.py`、`app/routers/predictions.py` | `tests/test_api_companies.py`、`tests/test_api_predictions.py`、`04_testing/outputs/test_api.py`（系統整合，真實 HTTP）+ 真實 Supabase 資料 API 讀取驗證 | `nginx.conf`（反向代理對外唯一入口） | `06_maintenance/outputs/monitoring_dashboard.md`（API 稽核事件監控，§3） | `[已驗證]` |
-| REQ_008 | Planner 需求分析 | `formal_requirements.md` §REQ_008 | `api_spec.md`(POST /admin/ingest/trigger)<br>`activity_diagram.md` | `app/routers/admin.py`、`app/scheduler.py`（覆蓋率 0%，管線串接未完成） | `tests/test_auth.py`、`test_api.py::test_admin_scope_can_trigger_ingest_real_http` | 排程隨 app 容器啟動（同進程 APScheduler） | `06_maintenance/outputs/monitoring_dashboard.md` §2（排程健康度監控已設計，待 `scheduler.py` 實際串接後生效） | `[不連貫警告]`（⚠️ 部分符合：管線串接待後續，見 regression_test_report.md 第三節） |
+| REQ_008 | Planner 需求分析 | `formal_requirements.md` §REQ_008 | `api_spec.md`(POST /admin/ingest/trigger)<br>`activity_diagram.md` | `app/routers/admin.py`、`app/scheduler.py`、`app/main.py`（scheduler 啟動/關閉）、`app/jobs.py`（REQ_011 追加：mops_ingest/sec_edgar_ingest/price_ingest 真實邏輯；weekly_predict/model_retrain/weekly_backtest 仍為 stub） | `tests/test_auth.py`、`test_api.py::test_admin_scope_can_trigger_ingest_real_http`、`tests/test_jobs.py`（REQ_011） | 排程隨 app 容器啟動（同進程 APScheduler） | `06_maintenance/outputs/monitoring_dashboard.md` §2（排程健康度監控已設計）；REQ_011 已解除資料擷取 3 任務的管線斷鏈 | `[已驗證]`（資料擷取 3 任務已串接；模型類 3 任務仍為已知限制，見 `04_testing/outputs/test_results.md` §五） |
 | REQ_009 | Planner 需求分析 | `formal_requirements.md` §REQ_009 | `db_schema.sql`(prediction_backtests)<br>`api_spec.md`(backtest) | `app/prediction/backtest.py`、`app/routers/predictions.py` | `tests/test_backtest.py`（5）、`tests/test_api_predictions.py` | 隨 app 容器部署 | `06_maintenance/outputs/monitoring_dashboard.md` §4（`prediction_backtests` 現況為空） | `[不連貫警告]`（待有真實預測/回測資料） |
 | REQ_SEC_001 | 資安基準（中級） | `security_requirements.md` §五 | `db_schema.sql`(api_keys,audit_logs)<br>`threat_model.md` | `app/auth.py`、`app/audit.py`（含 source_ip 修復）；本次以真實 API Key 驗證 | `tests/test_auth.py`（7）、`04_testing/outputs/dast_report.md`（DAST） | `nginx.conf`（TLS/安全標頭）、`security_deployment_checklist.md`、`signature_status.json` | `06_maintenance/outputs/security_trend.md`（100%，未下降） | `[已驗證]` |
 | REQ_010 | 使用者口述（Phase 05 後追加，Phase 06 前） | 補於本文件 | 無獨立設計文件（沿用既有 API 端點，未另建 UI 雛型） | `app/static/dashboard.{html,css,js}`、`app/main.py`（`/dashboard`、`/static` 掛載） | `tests/test_dashboard.py`（3 項）+ 真實瀏覽器驗證（Chrome headless + Puppeteer，見下方說明）+ 本次以真實瀏覽器視窗顯示台積電/Apple 真實資料 | 隨 app 容器一併部署（無獨立服務） | `06_maintenance/outputs/regression_test_report.md`（`test_dashboard.py` 3 項無回歸） | `[已驗證]` |
+| REQ_011 | 使用者口述（Phase 06 後追加，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(POST /api/v1/companies)<br>`threat_model.md` §三之一 | `app/routers/companies.py`（POST 端點）、`app/schemas.py`（`CompanyCreateRequest`）、`app/ingestion/sec_edgar_client.py`（`lookup_cik`）、`app/jobs.py`（新檔）、`app/static/dashboard.{html,css,js}`（新增公司表單） | `tests/test_api_companies.py`（新增 6 項）、`tests/test_cik_lookup.py`（4 項）、`tests/test_jobs.py`（3 項） | 隨 app 容器一併部署（無獨立服務）；排程任務現會真實呼叫外部 API，見 §五之提醒 | 補於本文件下方「REQ_011 補充說明」 | `[已驗證]` |
 
-> 說明：`[不連貫警告]` 為框架標準狀態標記，表示該需求尚未貫穿所有階段。Phase 06（維護與營運）已於 2026-07-15 完成第一輪，REQ_001/002/003/007/SEC_001/010 已因本輪真實資料擷取與熱修補而更新為 `[已驗證]`；REQ_004/005/006/008/009 仍標記 `[不連貫警告]`，原因是模型預測/回測尚未對真實資料執行（非監控或測試機制缺陷，見 `06_maintenance/outputs/monitoring_dashboard.md`）。
+> 說明：`[不連貫警告]` 為框架標準狀態標記，表示該需求尚未貫穿所有階段。Phase 06（維護與營運）已於 2026-07-15 完成第一輪，REQ_001/002/003/007/SEC_001/010 已因本輪真實資料擷取與熱修補而更新為 `[已驗證]`；REQ_004/005/006/009 仍標記 `[不連貫警告]`，原因是模型預測/回測尚未對真實資料執行（非監控或測試機制缺陷，見 `06_maintenance/outputs/monitoring_dashboard.md`）。REQ_008 已因 REQ_011（同日 out-of-band 追加）補齊 3 個資料擷取任務的真實邏輯而更新為 `[已驗證]`，模型類任務的限制併入 REQ_004/005/006 之既有已知限制範圍，不再視為 REQ_008 本身之缺口。
 >
 > **⚠️ Phase 05 重要限制**：本機環境未安裝 Docker/nginx/PostgreSQL，故「部署驗證 (05)」欄位所列組態檔案**已產出但未經實際建置/執行驗證**（無 `docker build`/`docker compose up`/`nginx -t` 之真實結果）。已完成驗證項目：`build_manifest.json` 之 33 個檔案 SHA-256 雜湊已重新計算比對一致；應用程式本身（非容器化）健康檢查通過；Git pre-commit 密鑰掃描 hook 已安裝並以真實測試驗證攔截效果。詳見 `05_deployment/outputs/deployment_topology.md`「驗證限制」章節。
 
@@ -46,6 +47,26 @@
 - **內容**：公司選擇器、財務指標歷史（表格 + 趨勢圖，7 指標可切換）、股價歷史趨勢圖、最新預測結果（KPI 卡片 + 股價圖上以區間色塊疊加融合/財報因子/時間序列三模型明細）、回測準確率（含尚無資料時的空狀態）。
 - **配色**：採用 dataviz skill 的參考色板，已實際執行 `validate_palette.js` 驗證 light/dark 兩模式（皆 PASS，含 CVD 分離度與對比度檢查）。
 - **驗證方式**：由於本環境無法開啟真實使用者瀏覽器，改以 Chrome headless（系統既有安裝）+ Puppeteer 驅動，實際輸入 API Key、選擇公司、觸發圖表 hover，並擷取螢幕截圖確認：light mode、dark mode、無效金鑰錯誤狀態、tooltip 互動皆正確渲染。新增 `tests/test_dashboard.py`（3 項）驗證路由本身可正常回應。全部 52 項自動化測試（Phase 03/04 既有 49 + 本次 3）皆通過。
+
+## REQ_011 補充說明：新增追蹤公司 UI/API + 排程真實擷取邏輯（Phase 06 後追加）
+
+> 使用者要求在既有系統上追加「新增公司」功能（含美股），並依 SSDLC 規劃。此為範疇外的輕量追加，
+> 比照 REQ_010 先例，未走完整 Phase 02→03 PDCA 順序、未建立獨立 Baseline，僅於本文件與
+> `01_planning_and_analysis/reg/requirement_tracker.md`／`phase_gates.json`（`out_of_band_additions`）
+> 補充記錄。建立在先前 out-of-band 的 HF-004（`companies.cik` 欄位）之上。
+
+- **新增公司**：`POST /api/v1/companies`（`admin` scope）。美股未提供 `cik` 時，自動呼叫 SEC 官方
+  `company_tickers.json` 對照表查詢；查無結果則回 `422`，前端表單會秀出手動 CIK 欄位。重複
+  `(market, ticker)` 回 `409`。
+- **排程真實邏輯**：新增 `app/jobs.py`，`mops_ingest`/`sec_edgar_ingest`/`price_ingest` 三個排程任務
+  自 stub 改為真正查詢 `companies` 表、呼叫對應擷取 client、寫入 `financial_reports`/`price_history`。
+  `weekly_predict`/`model_retrain`/`weekly_backtest` 三個模型類任務仍維持 stub，非本次範圍。
+- **前端**：`dashboard.js`/`dashboard.html`/`dashboard.css` 新增「＋ 新增公司」表單，處理
+  409/422/403 等錯誤情境，成功後自動刷新並選取新公司。
+- **驗證方式**：新增 23 項自動化測試（`test_api_companies.py` 擴充 6 項、`test_cik_lookup.py` 4 項、
+  `test_jobs.py` 3 項，另計入既有擴充），全數通過；既有 `04_testing/outputs/test_api.py`（9 項真實
+  uvicorn 子行程系統整合測試）於本次異動後重新執行，全數通過，未產生回歸。詳見
+  `04_testing/outputs/test_results.md`。
 
 ## 框架瑕疵回饋（詳見根目錄 `待辦事項.md`）
 

@@ -30,6 +30,21 @@ async function apiGet(path, params = {}) {
   return res.json();
 }
 
+async function apiPost(path, body) {
+  const res = await fetch(new URL(path, window.location.origin), {
+    method: "POST",
+    headers: { "X-API-Key": state.apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Bootstrap / connection
 // ---------------------------------------------------------------------------
@@ -547,6 +562,93 @@ $("#company-select").addEventListener("change", (e) => {
   state.selectedTicker = ticker;
   state.selectedMarketForTicker = market;
   loadCompanyData();
+});
+
+// ---------------------------------------------------------------------------
+// Add company modal（REQ_011）
+// ---------------------------------------------------------------------------
+
+const addCompanyOverlay = $("#add-company-overlay");
+const addCompanyForm = $("#add-company-form");
+const addCompanyMsg = $("#add-company-msg");
+const addCikField = $("#add-cik-field");
+
+function openAddCompanyModal() {
+  addCompanyMsg.innerHTML = "";
+  addCompanyForm.reset();
+  addCikField.hidden = true;
+  addCompanyOverlay.hidden = false;
+}
+
+function closeAddCompanyModal() {
+  addCompanyOverlay.hidden = true;
+}
+
+function showAddCompanyError(msg) {
+  addCompanyMsg.innerHTML = `<div class="form-msg error">${escapeHtml(msg)}</div>`;
+}
+
+$("#add-company-btn").addEventListener("click", openAddCompanyModal);
+$("#add-company-cancel").addEventListener("click", closeAddCompanyModal);
+addCompanyOverlay.addEventListener("click", (ev) => {
+  if (ev.target === addCompanyOverlay) closeAddCompanyModal();
+});
+
+addCompanyForm.querySelectorAll('input[name="market"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    addCikField.hidden = addCompanyForm.market.value !== "US";
+  });
+});
+
+addCompanyForm.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  addCompanyMsg.innerHTML = "";
+
+  if (!state.apiKey) {
+    showAddCompanyError("請先於右上角設定有效的 API Key。");
+    return;
+  }
+
+  const payload = {
+    market: addCompanyForm.market.value,
+    ticker: $("#add-ticker").value.trim(),
+    name: $("#add-name").value.trim(),
+    industry: $("#add-industry").value.trim() || null,
+    cik: $("#add-cik").value.trim() || null,
+  };
+
+  try {
+    const created = await apiPost("/api/v1/companies", payload);
+    closeAddCompanyModal();
+    await tryConnect();
+
+    const sel = $("#company-select");
+    const val = `${created.market}:${created.ticker}`;
+    if ([...sel.options].some((o) => o.value === val)) {
+      sel.value = val;
+      state.selectedTicker = created.ticker;
+      state.selectedMarketForTicker = created.market;
+      await loadCompanyData();
+    }
+
+    const banner = document.createElement("div");
+    banner.className = "form-msg info";
+    banner.textContent = `已新增「${created.name}」（${created.ticker}）至追蹤清單。首次財務/股價資料需等排程執行，或由具 admin 權限之 API Key 呼叫 /api/v1/admin/ingest/trigger 手動觸發後才會出現。`;
+    $("#main-content").prepend(banner);
+  } catch (e) {
+    if (e.status === 409) {
+      showAddCompanyError("此公司已存在於追蹤清單。");
+    } else if (e.status === 422) {
+      addCikField.hidden = false;
+      showAddCompanyError(e.message || "查無對應之 CIK，請手動輸入。");
+    } else if (e.status === 403) {
+      showAddCompanyError("新增公司需要 admin 權限的 API Key。");
+    } else if (e.status === 401) {
+      showAddCompanyError("API Key 無效或已撤銷，請重新確認後再試一次。");
+    } else {
+      showAddCompanyError(`新增失敗：${e.message}`);
+    }
+  }
 });
 
 if (state.apiKey) tryConnect();

@@ -59,6 +59,14 @@
       "note": "使用者要求暫緩 Phase 06，先追加此功能。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。詳見 traceability_matrix.md 與 memory.md。",
       "tests_added": 3,
       "total_tests": 52
+    },
+    {
+      "id": "REQ_011",
+      "name": "新增追蹤公司 UI/API（含美股 CIK 自動查詢）+ 排程真實擷取邏輯",
+      "added_at": "2026-07-15T00:00:00",
+      "note": "使用者要求於既有系統上追加「新增公司」功能並依 SSDLC 規劃。建立在先前 out-of-band 的 HF-004（companies.cik 欄位）之上；一併補完 mops_ingest/sec_edgar_ingest/price_ingest 三個排程任務的真實擷取邏輯（weekly_predict/model_retrain/weekly_backtest 三個模型類任務仍為 stub，不在本次範圍）。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
+      "tests_added": 23,
+      "total_tests": 75
     }
   ],
   "phase_baseline_enabled": true,

@@ -33,6 +33,15 @@
 | SEC EDGAR XBRL 解析錯誤 | 不同公司申報格式細節差異可能導致欄位對應錯誤 | 建立欄位對應白名單與單元測試（對應 OI-002，Phase 03 落實） |
 | Alpha Vantage 速率限制 | 免費層級請求頻率受限，過量請求可能導致資料延遲或服務中斷 | 排程分散請求時間、加入重試與退避機制（REQ_008） |
 
+## 三之一、REQ_011 新增公司端點威脅分析（out-of-band，2026-07-15 追加）
+
+| 類別 | 威脅情境 | 影響 | 對應措施 | 構面 |
+| :--- | :--- | :--- | :--- | :--- |
+| **T**ampering / Injection | 使用者於 `name`/`industry`/`ticker` 欄位輸入惡意內容 | 資料完整性受損、下游顯示層需正確跳脫 | Pydantic Schema 型別驗證；前端渲染時以 `escapeHtml` 跳脫（沿用既有 `dashboard.js` 作法），不使用字串拼接寫入 SQL（ORM 參數化查詢） | 構面 7 |
+| **E**levation of Privilege | `read` scope 金鑰呼叫新增端點 | 未授權寫入公司主檔 | 沿用既有 `require_admin_scope` 依賴，伺服器端強制檢查 | 構面 1、4 |
+| SSRF（CIK 自動查詢） | 若查詢 URL 可被使用者輸入操控 | 可能被利用發起任意內部/外部請求 | 查詢 URL 為程式碼內固定白名單常數（`https://www.sec.gov/files/company_tickers.json`），不接受任何使用者輸入拼接 | 構面 6 |
+| 重複/競態寫入 | 短時間內重複送出相同公司 | 資料重複或競態條件下違反唯一性 | DB 層 `UNIQUE (market, ticker)` constraint 為最終把關，應用層 409 檢查僅為友善錯誤訊息 | 構面 7 |
+
 ## 四、階段性限制說明
 
 - 本機開發環境暫未配置正式 TLS 憑證，構面 6 之 HTTPS 要求於 Phase 05 部署至正式環境後方能完整驗證，屬**階段性限制**，非設計缺陷。

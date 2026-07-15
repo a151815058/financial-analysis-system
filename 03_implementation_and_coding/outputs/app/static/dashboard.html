@@ -30,6 +30,43 @@
     <option value="TW">台股</option>
     <option value="US">美股</option>
   </select>
+  <button id="add-company-btn" style="margin-left:8px;">＋ 新增公司</button>
+</div>
+
+<div class="modal-overlay" id="add-company-overlay" hidden>
+  <div class="modal">
+    <h2>新增追蹤公司</h2>
+    <div id="add-company-msg"></div>
+    <form id="add-company-form">
+      <div class="field">
+        <label>市場</label>
+        <div class="radio-row">
+          <label><input type="radio" name="market" value="TW" checked> 台股</label>
+          <label><input type="radio" name="market" value="US"> 美股</label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="add-ticker">股票代號 / Ticker</label>
+        <input type="text" id="add-ticker" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="add-name">公司名稱</label>
+        <input type="text" id="add-name" required autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="add-industry">產業（可選）</label>
+        <input type="text" id="add-industry" autocomplete="off">
+      </div>
+      <div class="field" id="add-cik-field" hidden>
+        <label for="add-cik">CIK（留空將自動查詢，查無結果才需手動填寫）</label>
+        <input type="text" id="add-cik" autocomplete="off">
+      </div>
+      <div class="actions">
+        <button type="button" id="add-company-cancel">取消</button>
+        <button type="submit" class="primary" id="add-company-submit">新增</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <main id="main-content">

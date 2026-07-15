@@ -37,6 +37,7 @@ class Company(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     industry: Mapped[str | None] = mapped_column(String(100))
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    cik: Mapped[str | None] = mapped_column(String(10))  # SEC EDGAR CIK，US 公司排程擷取用；NULL=尚未登記
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

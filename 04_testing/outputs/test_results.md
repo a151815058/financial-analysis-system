@@ -10,20 +10,22 @@
 
 | 測試層 | 位置 | 說明 | 項數 |
 | :--- | :--- | :--- | :---: |
-| 單元/整合測試 | `03_implementation_and_coding/outputs/tests/`（Phase 03 產出） | FastAPI `TestClient`（in-process），涵蓋資料擷取、正規化、模型、融合、回測、認證、API 端點邏輯 | 49 |
-| 系統整合測試（本階段新增） | `04_testing/outputs/test_api.py` | 真實啟動 `uvicorn` 子行程，以實際 HTTP 呼叫驗證完整部署路徑 | 9 |
-| **合計** | | | **58** |
+| 單元/整合測試 | `03_implementation_and_coding/outputs/tests/`（Phase 03 產出 + REQ_010/REQ_011 out-of-band 追加） | FastAPI `TestClient`（in-process），涵蓋資料擷取、正規化、模型、融合、回測、認證、API 端點邏輯、新增公司/CIK 查詢/排程真實擷取邏輯 | 75 |
+| 系統整合測試 | `04_testing/outputs/test_api.py` | 真實啟動 `uvicorn` 子行程，以實際 HTTP 呼叫驗證完整部署路徑 | 9 |
+| **合計** | | | **84** |
 
 ## 二、測試結果總覽
 
 | 項目 | 結果 |
 | :--- | :--- |
-| 總測試數 | 58 |
-| ✅ 通過 | 58（100%） |
+| 總測試數 | 84 |
+| ✅ 通過 | 84（100%） |
 | ❌ 失敗 | 0 |
-| 程式碼覆蓋率（`app/`） | **92.5%**（786 行中 727 行已覆蓋，59 行未覆蓋） |
+| 程式碼覆蓋率（`app/`） | 92.5%（Phase 04 當時基準，786 行中 727 行已覆蓋；REQ_011 新增 `app/jobs.py` 等模組後尚未重新量測，見下方註記） |
 | 執行時間 | 約 6~14 秒（視環境而定） |
 | 完整結果檔 | `combined_test_results.xml`（JUnit 格式）、`coverage.json` |
+
+> 2026-07-15 更新：REQ_011（新增追蹤公司 UI/API + 排程真實擷取邏輯）out-of-band 追加後，`tests/` 目錄新增 23 項測試（`test_api_companies.py` 擴充、`test_cik_lookup.py`、`test_jobs.py`），總數由 58 增至 84，全數通過。覆蓋率百分比為 Phase 04 當時基準，尚未針對本次新增程式碼重新執行 coverage 量測。
 
 ## 三、需求測試覆蓋率（對應 `reg/requirement_tracker.md`）
 
@@ -36,11 +38,12 @@
 | REQ_005 | 股價時間序列模型 | `test_timeseries_model.py`（4 項，含缺值處理） | ✅ |
 | REQ_006 | 雙模型融合 | `test_ensemble.py`（4 項） | ✅ |
 | REQ_007 | 預測結果查詢 API | `test_api_companies.py`、`test_api_predictions.py`、`test_api.py`（系統整合） | ✅ |
-| REQ_008 | 資料擷取與模型更新排程 | `test_auth.py`（admin 端點權限）、`test_api.py::test_admin_scope_can_trigger_ingest_real_http` | ⚠️ 部分（排程實際觸發邏輯待 `scheduler.py` 與資料管線整合後於後續階段驗證，見下方限制說明） |
+| REQ_008 | 資料擷取與模型更新排程 | `test_auth.py`（admin 端點權限）、`test_api.py::test_admin_scope_can_trigger_ingest_real_http`、`test_jobs.py`（REQ_011 追加，驗證 3 個擷取任務真實邏輯） | ✅（mops_ingest/sec_edgar_ingest/price_ingest 已接上真實邏輯；weekly_predict/model_retrain/weekly_backtest 三個模型類任務仍為 stub，見下方限制說明） |
 | REQ_009 | 預測準確率回測 | `test_backtest.py`（5 項） | ✅ |
-| REQ_SEC_001 | API 存取控制與身份驗證 | `test_auth.py`（6 項）、`test_api.py`（3 項認證相關） | ✅ |
+| REQ_SEC_001 | API 存取控制與身份驗證 | `test_auth.py`（6 項）、`test_api.py`（3 項認證相關）、`test_api_companies.py`（REQ_011 新增端點 admin scope 檢查） | ✅ |
+| REQ_011 | 新增追蹤公司 UI/API（含美股 CIK 自動查詢），out-of-band | `test_api_companies.py`（6 項新增）、`test_cik_lookup.py`（4 項）、`test_jobs.py`（3 項） | ✅ |
 
-**需求測試覆蓋率：9/9 功能需求 + 1/1 安全需求皆有對應測試（100%）**；REQ_008 標記部分符合，原因見下方限制說明。
+**需求測試覆蓋率：9/9 功能需求 + 1/1 安全需求 + 1 項 out-of-band 需求皆有對應測試（100%）**；REQ_008 三個資料擷取任務已解除先前的部分符合狀態，餘下限制見下方說明。
 
 ## 四、程式碼覆蓋率細節（低於 90% 之模組）
 
@@ -53,9 +56,11 @@
 
 > 92.5% 屬合理水準，未覆蓋部分均為聲明性配置或次要分支，非核心業務邏輯缺口。
 
-## 五、限制說明（REQ_008 部分符合）
+## 五、限制說明（2026-07-15 更新：REQ_008 資料擷取部分已解除，模型類任務仍為已知限制）
 
-`app/routers/admin.py` 的 `POST /admin/ingest/trigger` 端點目前僅記錄稽核日誌並回傳 `202 Accepted`，**尚未實際呼叫**資料擷取/模型推論管線（`app/ingestion/*`、`app/prediction/*`）。這是 Phase 03 任務範圍內的合理邊界（T-12 定義為「API 層」，管線編排非本階段任務），非缺陷。待後續整合任務將 `app/scheduler.py` 的任務函式與 admin 觸發端點串接至實際管線後，需針對「觸發後確實執行擷取/推論」補充整合測試。
+`app/routers/admin.py` 的 `POST /admin/ingest/trigger` 端點與 `app/scheduler.py` 排程現已實際呼叫 `app/jobs.py`（REQ_011 新增）中 `run_mops_ingest`/`run_sec_edgar_ingest`/`run_price_ingest` 三個函式，會依 `companies` 表實際內容打外部 API 並寫入 `financial_reports`/`price_history`，不再只是記稽核日誌。
+
+**仍為已知限制**：`weekly_predict`、`model_retrain`、`weekly_backtest` 三個模型類任務尚未與 `app/prediction/*` 模組整合，`app/main.py` 中仍維持只記 log 的佔位函式。待後續任務補齊後，需針對「觸發後確實執行模型推論/回測」補充整合測試。
 
 ## 六、安全測試
 

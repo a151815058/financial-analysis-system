@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.db_session import init_db
+from app.jobs import run_mops_ingest, run_price_ingest, run_sec_edgar_ingest
 from app.routers import admin, companies, predictions
 from app.scheduler import build_scheduler
 
@@ -34,15 +35,14 @@ def _stub_job(task_name: str):
 async def lifespan(_: FastAPI):
     init_db()
     job_functions = {
-        name: _stub_job(name)
-        for name in (
-            "mops_ingest",
-            "sec_edgar_ingest",
-            "price_ingest",
-            "weekly_predict",
-            "model_retrain",
-            "weekly_backtest",
-        )
+        # REQ_011：真實擷取邏輯（app/jobs.py），會依 companies 表實際內容打外部 API
+        "mops_ingest": run_mops_ingest,
+        "sec_edgar_ingest": run_sec_edgar_ingest,
+        "price_ingest": run_price_ingest,
+        # 模型類任務仍待與預測/回測管線整合，維持佔位函式（不在 REQ_011 範圍）
+        "weekly_predict": _stub_job("weekly_predict"),
+        "model_retrain": _stub_job("model_retrain"),
+        "weekly_backtest": _stub_job("weekly_backtest"),
     }
     scheduler = build_scheduler(job_functions)
     scheduler.start()

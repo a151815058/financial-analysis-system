@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db_models import Company, FinancialReport
+from app.db_models import Company, FinancialReport, PriceHistory
 
 CORE_METRIC_FIELDS = (
     "revenue",
@@ -41,13 +41,22 @@ class NormalizedFinancials:
 
 
 def get_or_create_company(
-    session: Session, *, ticker: str, market: str, name: str, currency: str, industry: str | None = None
+    session: Session,
+    *,
+    ticker: str,
+    market: str,
+    name: str,
+    currency: str,
+    industry: str | None = None,
+    cik: str | None = None,
 ) -> Company:
     company = session.execute(
         select(Company).where(Company.market == market, Company.ticker == ticker)
     ).scalar_one_or_none()
     if company is None:
-        company = Company(ticker=ticker, market=market, name=name, currency=currency, industry=industry)
+        company = Company(
+            ticker=ticker, market=market, name=name, currency=currency, industry=industry, cik=cik
+        )
         session.add(company)
         session.flush()
     return company
@@ -106,3 +115,47 @@ def upsert_financial_report(
     session.add(report)
     session.flush()
     return report
+
+
+def upsert_price_point(
+    session: Session,
+    *,
+    company: Company,
+    trade_date,
+    open_price,
+    high_price,
+    low_price,
+    close_price,
+    volume,
+    source: str,
+) -> PriceHistory:
+    """寫入單日股價，同一 (company, trade_date) 已存在則覆寫（股價無版本化需求，與財報不同）。"""
+    existing = session.execute(
+        select(PriceHistory).where(
+            PriceHistory.company_id == company.company_id, PriceHistory.trade_date == trade_date
+        )
+    ).scalar_one_or_none()
+
+    if existing is not None:
+        existing.open_price = open_price
+        existing.high_price = high_price
+        existing.low_price = low_price
+        existing.close_price = close_price
+        existing.volume = volume
+        existing.source = source
+        session.flush()
+        return existing
+
+    point = PriceHistory(
+        company_id=company.company_id,
+        trade_date=trade_date,
+        open_price=open_price,
+        high_price=high_price,
+        low_price=low_price,
+        close_price=close_price,
+        volume=volume,
+        source=source,
+    )
+    session.add(point)
+    session.flush()
+    return point

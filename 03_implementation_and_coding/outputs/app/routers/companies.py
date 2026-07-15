@@ -9,10 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import record as record_audit
-from app.auth import AuthContext, require_api_key
+from app.auth import AuthContext, require_admin_scope, require_api_key
 from app.db_models import Company, FinancialReport, PriceHistory
 from app.db_session import get_session
-from app.schemas import CompanyOut, FinancialsResponse, PricesResponse
+from app.ingestion.sec_edgar_client import lookup_cik
+from app.schemas import CompanyCreateRequest, CompanyOut, FinancialsResponse, PricesResponse
+
+CURRENCY_BY_MARKET = {"TW": "TWD", "US": "USD"}
 
 
 def _client_ip(request: Request) -> str | None:
@@ -28,6 +31,55 @@ def _get_company_or_404(session: Session, ticker: str, market: str) -> Company:
     ).scalar_one_or_none()
     if company is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    return company
+
+
+@router.post("", response_model=CompanyOut, status_code=status.HTTP_201_CREATED)
+def create_company(
+    payload: CompanyCreateRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+    auth: AuthContext = Depends(require_admin_scope),
+) -> Company:
+    """新增追蹤公司（REQ_011）。美股未提供 cik 時自動以 SEC ticker→CIK 對照表查詢。"""
+    existing = session.execute(
+        select(Company).where(Company.market == payload.market, Company.ticker == payload.ticker)
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail=f"{payload.market}:{payload.ticker} 已存在於追蹤清單"
+        )
+
+    cik = payload.cik
+    if payload.market == "US" and not cik:
+        cik = lookup_cik(payload.ticker)
+        if cik is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"SEC 查無 {payload.ticker} 對應之 CIK，請於 cik 欄位手動提供",
+            )
+
+    company = Company(
+        ticker=payload.ticker,
+        market=payload.market,
+        name=payload.name,
+        industry=payload.industry,
+        currency=CURRENCY_BY_MARKET[payload.market],
+        cik=cik,
+    )
+    session.add(company)
+    session.commit()
+    session.refresh(company)
+
+    record_audit(
+        session,
+        api_key_id=auth.api_key_id,
+        action="companies.create",
+        resource=f"{payload.market}:{payload.ticker}",
+        result="SUCCESS",
+        source_ip=_client_ip(request),
+        detail={"ticker": payload.ticker, "market": payload.market, "cik": cik},
+    )
     return company
 
 

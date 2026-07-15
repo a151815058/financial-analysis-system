@@ -12,6 +12,7 @@
 | REQ_008 | 2026-07-14 | Planner 需求分析 | P1 | 資料擷取與模型更新排程機制 | 待 Phase 02 | 待 Phase 03 | 待 Phase 04 | ✅ 已驗證 |
 | REQ_009 | 2026-07-14 | Planner 需求分析 | P1 | 預測準確率回測與追蹤報告 | 待 Phase 02 | 待 Phase 03 | 待 Phase 04 | ✅ 已驗證 |
 | REQ_SEC_001 | 2026-07-14 | 資安基準（中級） | P0 | API 存取控制與身份驗證 | 待 Phase 02 | 待 Phase 03 | 待 Phase 04 | ✅ 已驗證 |
+| REQ_011 | 2026-07-15 | 使用者口述（out-of-band，比照 REQ_010） | P1 | 使用者可透過 UI/API 新增追蹤公司（台股/美股），美股未提供 CIK 時自動以 SEC ticker 對照表查詢；一併補完 mops_ingest/sec_edgar_ingest/price_ingest 三個排程任務的真實擷取邏輯 | `02_system_design/outputs/api_spec.md` | `app/routers/companies.py`, `app/ingestion/sec_edgar_client.py`, `app/jobs.py` | `tests/test_api_companies.py`, `tests/test_cik_lookup.py`, `tests/test_jobs.py` | ✅ 已驗證 |
 
 ## grill-me 缺口拷問記錄
 

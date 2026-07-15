@@ -167,3 +167,33 @@ def compute_pe_ratio(price_at_report_date: float | None, ttm_eps: float | None) 
     if not price_at_report_date or not ttm_eps or ttm_eps == 0:
         return None
     return round(price_at_report_date / ttm_eps, 3)
+
+
+# ---------------------------------------------------------------------------
+# Ticker → CIK 自動查詢（REQ_011：新增美股公司時，未提供 CIK 之自動補全）
+# ---------------------------------------------------------------------------
+
+TICKER_TO_CIK_URL = "https://www.sec.gov/files/company_tickers.json"
+
+_ticker_cik_cache: dict[str, str] | None = None
+
+
+def _load_ticker_cik_map() -> dict[str, str]:
+    """下載並快取 SEC 官方 ticker→CIK 對照表（固定白名單 URL，模組層級快取避免重複下載）。"""
+    global _ticker_cik_cache
+    if _ticker_cik_cache is None:
+        headers = {"User-Agent": settings.sec_edgar_user_agent}
+        payload = get_with_retry(TICKER_TO_CIK_URL, headers=headers).json()
+        _ticker_cik_cache = {
+            str(entry["ticker"]).upper(): str(entry["cik_str"]).zfill(10) for entry in payload.values()
+        }
+    return _ticker_cik_cache
+
+
+def lookup_cik(ticker: str) -> str | None:
+    """依 ticker 查詢 CIK；查詢失敗（網路/格式異常）視為查無結果，交由呼叫端要求使用者手動輸入。"""
+    try:
+        cik_map = _load_ticker_cik_map()
+    except ExternalSourceError:
+        return None
+    return cik_map.get(ticker.upper())

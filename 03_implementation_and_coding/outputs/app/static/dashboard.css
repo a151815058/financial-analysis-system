@@ -320,6 +320,80 @@ th {
 
 .chart-wrap { position: relative; }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.modal-overlay[hidden] { display: none; }
+
+.modal {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.20);
+}
+
+.modal h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.modal .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.modal .field label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.modal input[type="text"],
+.modal select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--page-plane);
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.modal .radio-row {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+.modal .radio-row label { display: flex; align-items: center; gap: 4px; color: var(--text-primary); }
+
+.modal .form-msg {
+  font-size: 12px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+.modal .form-msg.error { background: rgba(208,59,59,0.12); color: var(--status-critical); }
+.modal .form-msg.info { background: rgba(42,120,214,0.10); color: var(--series-1); }
+
+.modal .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
 footer {
   text-align: center;
   padding: 20px;

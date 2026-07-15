@@ -26,6 +26,23 @@
 ]
 ```
 
+### POST /api/v1/companies
+- **說明**：新增追蹤公司（對應 REQ_011，需 `admin` scope）
+- **Request Body**：
+```json
+{ "ticker": "MSFT", "market": "US", "name": "Microsoft Corp.", "industry": "軟體", "cik": null }
+```
+- **欄位說明**：
+  - `ticker`（必填）、`market`（必填，`TW`/`US`）、`name`（必填）、`industry`（可選）
+  - `cik`（可選，僅 `market=US` 有意義）：美股公司若未提供，伺服器會呼叫 SEC 官方 ticker→CIK 對照表自動查詢；查無結果才需使用者手動填入
+  - `currency` 不接受客戶端輸入，伺服器依 `market` 自動決定（`TW`→`TWD`、`US`→`USD`）
+- **回應** `201 Created`：`CompanyOut`（同 GET /api/v1/companies 單筆格式）
+- **錯誤**：
+  - `409 Conflict`：`(market, ticker)` 已存在
+  - `422 Unprocessable Entity`：`market=US` 且未提供 `cik`，SEC 自動查詢亦查無對應 CIK
+  - `403 Forbidden`：呼叫者非 `admin` scope
+- **後續資料出現時機**：新增公司僅登記公司主檔，實際財務/股價資料需待排程（`mops_ingest`/`sec_edgar_ingest`/`price_ingest`，見下方 `POST /api/v1/admin/ingest/trigger`）下次執行或手動觸發後才會寫入。
+
 ### GET /api/v1/companies/{ticker}/financials
 - **說明**：查詢指定公司之季度財務指標歷史（對應 REQ_001~003）
 - **Path 參數**：`ticker`
@@ -88,7 +105,7 @@
 ```json
 { "task": "mops_ingest" }
 ```
-- **可用 task 值**：`mops_ingest`（台股）、`sec_edgar_ingest`（美股財報）、`price_ingest`（股價）、`model_retrain`、`weekly_predict`
+- **可用 task 值**：`mops_ingest`（台股）、`sec_edgar_ingest`（美股財報）、`price_ingest`（股價）、`model_retrain`、`weekly_predict`、`weekly_backtest`
 - **回應** `202 Accepted`：任務已排入佇列
 - **權限不足**：`403 Forbidden`
 

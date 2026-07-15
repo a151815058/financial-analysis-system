@@ -15,11 +15,13 @@ CREATE TABLE companies (
     name            VARCHAR(200) NOT NULL,
     industry        VARCHAR(100),
     currency        CHAR(3)      NOT NULL CHECK (currency IN ('TWD', 'USD')),
+    cik             VARCHAR(10),                          -- SEC EDGAR CIK（US 公司排程擷取用，見 migrations/002）
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
     UNIQUE (market, ticker)
 );
 COMMENT ON TABLE companies IS 'REQ_003：跨市場公司主檔';
+COMMENT ON COLUMN companies.cik IS 'REQ_002/REQ_008：SEC EDGAR Company Facts API 所需之 CIK 編號，US 公司排程擷取用；NULL 表示尚未登記，sec_edgar_ingest 會略過該公司';
 
 -- ---------------------------------------------------------------------------
 -- 2. financial_reports — 季度財務報表正規化資料
