@@ -41,6 +41,9 @@ def fetch_daily_prices(ticker: str, outputsize: str = "compact") -> list[PricePo
     if "Note" in payload:
         # 速率限制訊息，視為可重試之暫時性錯誤
         raise ExternalSourceError(f"Alpha Vantage 速率限制（{ticker}）：{payload['Note']}")
+    if "Information" in payload:
+        # 免費層級限制（如 outputsize=full 需付費方案）或其他提示訊息
+        raise ExternalSourceError(f"Alpha Vantage 限制（{ticker}）：{payload['Information']}")
 
     series = payload.get("Time Series (Daily)")
     if not series:

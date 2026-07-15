@@ -52,6 +52,16 @@ def test_fetch_daily_prices_raises_on_rate_limit_note(monkeypatch):
         fetch_daily_prices("AAPL")
 
 
+def test_fetch_daily_prices_raises_on_information_message(monkeypatch):
+    # 例如 outputsize=full 需付費方案，免費層級回傳 Information 而非資料
+    monkeypatch.setattr(
+        "app.ingestion.alpha_vantage_client.get_with_retry",
+        lambda *a, **k: FakeResponse({"Information": "outputsize=full is a premium feature"}),
+    )
+    with pytest.raises(ExternalSourceError):
+        fetch_daily_prices("AAPL", outputsize="full")
+
+
 def test_fetch_batch_isolates_single_ticker_failure(monkeypatch):
     def fake_get(url, params=None, **kwargs):
         if params["symbol"] == "GOOD":

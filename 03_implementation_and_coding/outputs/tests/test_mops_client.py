@@ -1,63 +1,108 @@
 from __future__ import annotations
 
-from app.ingestion.mops_client import fetch_batch, fetch_quarterly_financials, parse_financial_table
+import pytest
 
-SAMPLE_HTML = """
-<table>
-  <tr><th>項目</th><th>金額</th></tr>
-  <tr><td>營業收入合計</td><td>592,000,000</td></tr>
-  <tr><td>基本每股盈餘</td><td>9.87</td></tr>
-  <tr><td>營業毛利率</td><td>55.2</td></tr>
-  <tr><td>稅後淨利率</td><td>40.1</td></tr>
-  <tr><td>負債比率</td><td>32.5</td></tr>
-  <tr><td>營業活動之淨現金流入</td><td>350,000,000</td></tr>
-  <tr><td>本益比</td><td>18.3</td></tr>
-</table>
-"""
+from app.ingestion.http_utils import ExternalSourceError
+from app.ingestion.mops_client import fetch_batch, fetch_quarterly_financials
 
-INCOMPLETE_HTML = "<table><tr><th>項目</th><th>金額</th></tr><tr><td>不相關項目</td><td>123</td></tr></table>"
+INCOME_ROW = {
+    "年度": "115",
+    "季別": "1",
+    "公司代號": "2330",
+    "公司名稱": "台積電",
+    "營業收入": "1134103440.00",
+    "營業毛利（毛損）淨額": "751295421.00",
+    "本期淨利（淨損）": "572801304.00",
+    "基本每股盈餘（元）": "22.08",
+}
 
+BALANCE_ROW = {
+    "年度": "115",
+    "季別": "1",
+    "公司代號": "2330",
+    "資產總額": "8660949685.00",
+    "負債總額": "2728560764.00",
+}
 
-def test_parse_financial_table_extracts_all_known_fields():
-    metrics = parse_financial_table(SAMPLE_HTML)
-    assert metrics.revenue == 592_000_000
-    assert metrics.eps == 9.87
-    assert metrics.gross_margin == 55.2
-    assert metrics.net_margin == 40.1
-    assert metrics.debt_ratio == 32.5
-    assert metrics.operating_cash_flow == 350_000_000
-    assert metrics.pe_ratio == 18.3
+PER_ROW = {"Date": "1150714", "Code": "2330", "Name": "台積電", "PEratio": "32.54"}
 
 
-def test_parse_financial_table_missing_fields_stay_none():
-    metrics = parse_financial_table(INCOMPLETE_HTML)
-    assert metrics.missing_fields() == list(metrics.missing_fields())  # 型別檢查
-    assert metrics.revenue is None
+class FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def json(self):
+        return self._payload
 
 
-def test_fetch_quarterly_financials_uses_parsed_table(monkeypatch):
-    class FakeResponse:
-        text = SAMPLE_HTML
+def _fake_get(income=None, balance=None, per=None):
+    income_rows = income if income is not None else [INCOME_ROW]
+    balance_rows = balance if balance is not None else [BALANCE_ROW]
+    per_rows = per if per is not None else [PER_ROW]
 
-    monkeypatch.setattr("app.ingestion.mops_client.get_with_retry", lambda *a, **k: FakeResponse())
+    def _get(url, params=None, **kwargs):
+        if "t187ap06" in url:
+            return FakeResponse(income_rows)
+        if "t187ap07" in url:
+            return FakeResponse(balance_rows)
+        if "BWIBBU" in url:
+            return FakeResponse(per_rows)
+        raise AssertionError(f"unexpected url: {url}")
+
+    return _get
+
+
+def test_fetch_quarterly_financials_merges_three_endpoints(monkeypatch):
+    monkeypatch.setattr("app.ingestion.mops_client.get_with_retry", _fake_get())
 
     result = fetch_quarterly_financials("2330", 2026, 1)
+
     assert result.ticker == "2330"
-    assert result.metrics.revenue == 592_000_000
     assert result.fiscal_year == 2026 and result.fiscal_quarter == 1
+    assert result.metrics.revenue == 1134103440.0
+    assert result.metrics.eps == 22.08
+    assert result.metrics.gross_margin == pytest.approx(66.253, abs=0.01)
+    assert result.metrics.net_margin == pytest.approx(50.503, abs=0.01)
+    assert result.metrics.debt_ratio == pytest.approx(31.501, abs=0.01)
+    assert result.metrics.pe_ratio == 32.54
+    # 現金流量表無免費資料來源，誠實標記為缺漏而非以 0 填補
+    assert result.metrics.operating_cash_flow is None
+
+
+def test_fetch_quarterly_financials_raises_when_company_not_found(monkeypatch):
+    monkeypatch.setattr("app.ingestion.mops_client.get_with_retry", _fake_get(income=[]))
+
+    with pytest.raises(ExternalSourceError):
+        fetch_quarterly_financials("9999", 2026, 1)
+
+
+def test_fetch_quarterly_financials_raises_when_period_mismatched(monkeypatch):
+    stale_row = {**INCOME_ROW, "季別": "4", "年度": "114"}
+    monkeypatch.setattr("app.ingestion.mops_client.get_with_retry", _fake_get(income=[stale_row]))
+
+    with pytest.raises(ExternalSourceError):
+        fetch_quarterly_financials("2330", 2026, 1)
+
+
+def test_fetch_quarterly_financials_tolerates_missing_balance_row(monkeypatch):
+    monkeypatch.setattr("app.ingestion.mops_client.get_with_retry", _fake_get(balance=[]))
+
+    result = fetch_quarterly_financials("2330", 2026, 1)
+    assert result.metrics.debt_ratio is None
+    assert result.metrics.revenue == 1134103440.0
 
 
 def test_fetch_batch_isolates_single_ticker_failure(monkeypatch):
-    class FakeResponse:
-        def __init__(self, text):
-            self.text = text
+    def _get(url, params=None, **kwargs):
+        if "t187ap06" in url:
+            return FakeResponse([INCOME_ROW])
+        if "t187ap07" in url:
+            return FakeResponse([BALANCE_ROW])
+        if "BWIBBU" in url:
+            return FakeResponse([PER_ROW])
+        raise AssertionError(f"unexpected url: {url}")
 
-    responses = {"2330": FakeResponse(SAMPLE_HTML), "9999": FakeResponse(INCOMPLETE_HTML)}
-
-    def fake_get(url, params=None, **kwargs):
-        return responses[params["co_id"]]
-
-    monkeypatch.setattr("app.ingestion.mops_client.get_with_retry", fake_get)
+    monkeypatch.setattr("app.ingestion.mops_client.get_with_retry", _get)
 
     results, failed = fetch_batch(["2330", "9999"], 2026, 1)
 

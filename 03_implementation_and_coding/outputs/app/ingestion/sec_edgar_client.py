@@ -51,9 +51,27 @@ def _company_facts_url(cik: str) -> str:
     return f"https://data.sec.gov/api/xbrl/companyfacts/CIK{padded}.json"
 
 
+def _duration_days(entry: dict) -> int | None:
+    start, end = entry.get("start"), entry.get("end")
+    if not start or not end:
+        return None
+    try:
+        return (dt.date.fromisoformat(end) - dt.date.fromisoformat(start)).days
+    except ValueError:
+        return None
+
+
 def _find_value_for_period(
     facts_json: dict, tag_candidates: tuple[str, ...], fiscal_year: int, fiscal_quarter: int
 ) -> tuple[float | None, str | None]:
+    """在指定 fy/fp 下尋找對應數值。
+
+    同一 fy/fp 底下，10-Q 常同時申報「單季」與「年初至今累計」兩種期間長度的數值
+    （例如 Q2 同時揭露 3 個月與 6 個月兩欄），若不加篩選會不確定地取到累計數字並誤植
+    為單季數字。優先取期間長度落在單季範圍（80~100 天）者；若候選皆有 period 資訊卻
+    沒有一筆落在單季範圍（如部分公司現金流量表僅申報年初至今累計），寧可視為缺漏也不
+    誤標為單季。無 start/end 者（即時性資產負債表項目）不受此限制，直接採用。
+    """
     us_gaap = facts_json.get("facts", {}).get("us-gaap", {})
     fiscal_period = f"Q{fiscal_quarter}"
     for tag in tag_candidates:
@@ -61,9 +79,18 @@ def _find_value_for_period(
         if not tag_data:
             continue
         for unit_values in tag_data.get("units", {}).values():
-            for entry in unit_values:
-                if entry.get("fy") == fiscal_year and entry.get("fp") == fiscal_period:
-                    return float(entry["val"]), tag
+            candidates = [
+                e for e in unit_values if e.get("fy") == fiscal_year and e.get("fp") == fiscal_period
+            ]
+            if not candidates:
+                continue
+            durations = [(_duration_days(e), e) for e in candidates]
+            quarter_length = [e for d, e in durations if d is not None and 80 <= d <= 100]
+            if quarter_length:
+                return float(quarter_length[-1]["val"]), tag
+            if any(d is not None for d, _ in durations):
+                continue
+            return float(candidates[0]["val"]), tag
     return None, None
 
 
