@@ -41,17 +41,18 @@ flowchart LR
 
 ## 四、驗證限制（誠實揭露）
 
-> ⚠️ 本機開發環境**未安裝 Docker、nginx、PostgreSQL**，故本階段之 Dockerfile / docker-compose.yml / nginx.conf 為**依標準實踐撰寫，但未經實際 `docker build` / `docker compose up` / `nginx -t` 驗證**。
+> ⚠️ 本機開發環境**仍未安裝 Docker、nginx**，故 Dockerfile / docker-compose.yml / nginx.conf 仍為**依標準實踐撰寫，但未經實際 `docker build` / `docker compose up` / `nginx -t` 驗證**。**PostgreSQL 部分已於 2026-07-15 補做真實驗證（見下）**，不再屬於本節限制範圍。
 
 **已完成的驗證（不需 Docker 即可執行）**：
 - FastAPI 應用本身：已於 Phase 03/04 以真實 `uvicorn` 進程 + 真實 HTTP 驗證可運作（`04_testing/outputs/test_api.py`）
 - `db_schema.sql`：PostgreSQL DDL 語法（Phase 02 產出），本階段新增之 `audit_logs.source_ip` 欄位已納入
 - `requirements.txt` 套件版本：已於 Phase 03/04 於本機環境實際安裝並通過全部測試
+- **PostgreSQL 連線字串與實際資料表建立（2026-07-15 補驗證）**：使用者提供真實 Supabase PostgreSQL（`postgresql+psycopg://...@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres`），實際執行 `db_schema.sql` 建立全部 7 張資料表（`companies`、`financial_reports`、`price_history`、`predictions`、`prediction_backtests`、`api_keys`、`audit_logs`），並以真實 MOPS/TWSE/SEC EDGAR/Alpha Vantage 資料完成寫入與 API 讀取驗證（詳見 `memory.md`）。`JSONB`（`audit_logs.detail`）與 `TIMESTAMPTZ` 等 Postgres 專屬型別皆運作正常，與本機 SQLite 測試環境行為一致。
+- FastAPI 應用以真實 `uvicorn` 進程連接此 Supabase 資料庫，`/health` 與 `/api/v1/companies/*` 端點皆以真實請求驗證通過（非容器化，`app` 服務單獨啟動）。
 
-**待實際部署環境驗證項目**：
+**待實際部署環境驗證項目（僅剩 Docker/nginx 相關）**：
 - `docker build` 是否成功產出映像檔
-- `docker compose up` 服務啟動順序與健康檢查是否如預期運作
-- PostgreSQL 連線字串、實際資料表建立（`db_schema.sql` 於 Postgres 語法是否與本機 SQLite 測試環境行為一致，例如 `JSONB` vs SQLite 的 `JSON` 型別）
+- `docker compose up` 服務啟動順序與健康檢查是否如預期運作（`app`→`db` 依賴、`nginx`→`app` 依賴）
 - `nginx.conf` 語法（`nginx -t`）與反向代理實際轉發行為
 
-**建議**：正式部署前，於具備 Docker 之環境執行 `docker compose config` 驗證組態語法，並執行 `docker compose up` 後對 `/health` 端點做煙霧測試。
+**建議**：正式部署前，於具備 Docker 之環境執行 `docker compose config` 驗證組態語法，並執行 `docker compose up` 後對 `/health` 端點做煙霧測試（資料庫改連接容器內 `db` 服務或維持外部 Supabase 皆可）。

@@ -49,7 +49,8 @@
 ## 六、待辦事項彙總
 
 1. ~~安裝 Git pre-commit hook~~ ✅ 已完成（本階段手動安裝並驗證）
-2. 取得正式 TLS 憑證並掛載至 `nginx/certs/`
-3. 定義並實作 RPO/RTO 與資料庫備份排程
-4. 執行備份還原演練
-5. 於具備 Docker 環境執行 `docker compose config` 語法驗證 + `docker compose up` 實際煙霧測試
+2. ~~資料庫實際連線與 schema 套用驗證~~ ✅ 已完成（2026-07-15，使用真實 Supabase PostgreSQL，詳見 `deployment_topology.md` 第四節）
+3. 取得正式 TLS 憑證並掛載至 `nginx/certs/`
+4. 定義並實作 RPO/RTO 與資料庫備份排程
+5. 執行備份還原演練
+6. 於具備 Docker 環境執行 `docker compose config` 語法驗證 + `docker compose up` 實際煙霧測試（PostgreSQL 部分已於本機以外部 Supabase 驗證，此項僅剩容器編排與 nginx 反向代理）
