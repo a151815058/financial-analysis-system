@@ -1,43 +1,32 @@
-// 排程執行狀況管理後台（REQ_013）— 無外部相依，重用 dashboard.css 樣式。
-
-const state = { apiKey: localStorage.getItem("fas_api_key") || "" };
+// 排程執行狀況管理後台（REQ_013）+ 帳號密碼登入（REQ_014）— 無外部相依，重用 dashboard.css 樣式。
 
 const $ = (sel) => document.querySelector(sel);
 
-async function apiGet(path, params = {}) {
-  const url = new URL(path, window.location.origin);
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
-  });
-  const res = await fetch(url, { headers: { "X-API-Key": state.apiKey } });
+async function apiGet(path) {
+  const res = await fetch(path, { credentials: "same-origin" });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const err = new Error(typeof body.detail === "string" ? body.detail : `HTTP ${res.status}`);
     err.status = res.status;
     throw err;
   }
-  return res.json();
+  return res.status === 204 ? null : res.json();
 }
 
 async function apiPost(path, body) {
-  const res = await fetch(new URL(path, window.location.origin), {
+  const res = await fetch(path, {
     method: "POST",
-    headers: { "X-API-Key": state.apiKey, "Content-Type": "application/json" },
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
     const err = new Error(typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`);
     err.status = res.status;
     throw err;
   }
-  return data;
-}
-
-function setStatus(ok) {
-  const dot = $("#status-dot");
-  dot.classList.remove("ok", "err");
-  dot.classList.add(ok ? "ok" : "err");
+  return res.status === 204 ? null : res.json();
 }
 
 function escapeHtml(s) {
@@ -45,6 +34,125 @@ function escapeHtml(s) {
   d.textContent = s;
   return d.innerHTML;
 }
+
+// ---------------------------------------------------------------------------
+// 登入 / 登出 / 變更密碼（REQ_014）
+// ---------------------------------------------------------------------------
+
+const loginWrap = $("#login-wrap");
+const userBar = $("#user-bar");
+const loginForm = $("#login-form");
+const loginMsg = $("#login-msg");
+const loginSubmitBtn = $("#login-submit");
+
+function showLoggedOut(message) {
+  userBar.hidden = true;
+  $("#main-content").innerHTML = "";
+  $("#main-content").appendChild(loginWrap);
+  loginWrap.hidden = false;
+  loginWrap.classList.add("fade-in");
+  loginForm.reset();
+  loginMsg.innerHTML = message
+    ? `<div class="form-msg error">${escapeHtml(message)}</div>`
+    : "";
+}
+
+function showLoggedIn(username) {
+  loginWrap.hidden = true;
+  userBar.hidden = false;
+  $("#username-label").textContent = `已登入：${username}`;
+  loadJobs();
+}
+
+async function checkSession() {
+  try {
+    const me = await apiGet("/api/v1/auth/me");
+    showLoggedIn(me.username);
+  } catch (e) {
+    showLoggedOut();
+  }
+}
+
+loginForm.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  loginMsg.innerHTML = "";
+  loginSubmitBtn.disabled = true;
+  loginSubmitBtn.textContent = "登入中…";
+  try {
+    const me = await apiPost("/api/v1/auth/login", {
+      username: $("#login-username").value.trim(),
+      password: $("#login-password").value,
+    });
+    loginWrap.hidden = true;
+    userBar.hidden = false;
+    userBar.classList.add("fade-in");
+    $("#username-label").textContent = `已登入：${me.username}`;
+    loadJobs();
+  } catch (e) {
+    loginMsg.innerHTML = `<div class="form-msg error">${escapeHtml(e.message || "帳號或密碼錯誤")}</div>`;
+  } finally {
+    loginSubmitBtn.disabled = false;
+    loginSubmitBtn.textContent = "登入";
+  }
+});
+
+$("#logout-btn").addEventListener("click", async () => {
+  try {
+    await apiPost("/api/v1/auth/logout", {});
+  } catch (e) {
+    // 忽略登出本身的錯誤，仍然回到登入畫面
+  }
+  showLoggedOut();
+});
+
+const changePasswordOverlay = $("#change-password-overlay");
+const changePasswordForm = $("#change-password-form");
+const changePasswordMsg = $("#change-password-msg");
+
+$("#change-password-btn").addEventListener("click", () => {
+  changePasswordMsg.innerHTML = "";
+  changePasswordForm.reset();
+  changePasswordOverlay.hidden = false;
+});
+$("#change-password-cancel").addEventListener("click", () => {
+  changePasswordOverlay.hidden = true;
+});
+changePasswordOverlay.addEventListener("click", (ev) => {
+  if (ev.target === changePasswordOverlay) changePasswordOverlay.hidden = true;
+});
+
+changePasswordForm.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  changePasswordMsg.innerHTML = "";
+
+  const newPassword = $("#cp-new").value;
+  const confirmPassword = $("#cp-confirm").value;
+  if (newPassword !== confirmPassword) {
+    changePasswordMsg.innerHTML = `<div class="form-msg error">兩次輸入的新密碼不一致。</div>`;
+    return;
+  }
+
+  const submitBtn = $("#change-password-submit");
+  submitBtn.disabled = true;
+  try {
+    await apiPost("/api/v1/auth/change-password", {
+      current_password: $("#cp-current").value,
+      new_password: newPassword,
+    });
+    changePasswordOverlay.hidden = true;
+    changePasswordMsg.innerHTML = "";
+  } catch (e) {
+    changePasswordMsg.innerHTML = `<div class="form-msg error">${escapeHtml(e.message || "變更密碼失敗")}</div>`;
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+$("#refresh-btn").addEventListener("click", loadJobs);
+
+// ---------------------------------------------------------------------------
+// 排程任務清單（REQ_013）
+// ---------------------------------------------------------------------------
 
 const TASK_LABELS = {
   mops_ingest: "台股財報擷取（MOPS）",
@@ -66,11 +174,7 @@ function statusBadge(job) {
   return `<span class="pill ${ok ? "up" : "down"}"><span class="dot"></span>${ok ? "成功" : "失敗"}</span>`;
 }
 
-function renderMessage(msg) {
-  $("#main-content").innerHTML = `<div class="empty-state">${escapeHtml(msg)}</div>`;
-}
-
-function renderJobs(jobs) {
+function renderJobsTable(jobs) {
   const rows = jobs
     .map((job) => {
       const lastRun = job.last_run;
@@ -89,7 +193,7 @@ function renderJobs(jobs) {
     .join("");
 
   $("#main-content").innerHTML = `
-    <div class="card">
+    <div class="card fade-in">
       <div class="card-header"><h2>排程任務</h2></div>
       <div class="table-scroll">
         <table class="table-left">
@@ -110,22 +214,17 @@ function renderJobs(jobs) {
     .forEach((btn) => btn.addEventListener("click", () => triggerJob(btn.dataset.task, btn)));
 }
 
+function renderMessage(msg) {
+  $("#main-content").innerHTML = `<div class="empty-state">${escapeHtml(msg)}</div>`;
+}
+
 async function loadJobs() {
-  if (!state.apiKey) {
-    setStatus(false);
-    renderMessage("請先於右上角輸入具 admin 權限的 API Key。");
-    return;
-  }
   try {
     const jobs = await apiGet("/api/v1/admin/jobs");
-    setStatus(true);
-    renderJobs(jobs);
+    renderJobsTable(jobs);
   } catch (e) {
-    setStatus(false);
     if (e.status === 401) {
-      renderMessage("API Key 無效或已撤銷，請重新確認後再試一次。");
-    } else if (e.status === 403) {
-      renderMessage("此頁面需要 admin 權限的 API Key，read scope 無法查看排程狀態。");
+      showLoggedOut("登入已過期，請重新登入。");
     } else {
       renderMessage(`無法載入排程狀態：${e.message}`);
     }
@@ -140,23 +239,15 @@ async function triggerJob(task, btn) {
     await apiPost("/api/v1/admin/ingest/trigger", { task });
     setTimeout(loadJobs, 1500);
   } catch (e) {
-    if (e.status === 403) {
-      alert("觸發失敗：需要 admin 權限的 API Key。");
-    } else {
-      alert(`觸發失敗：${e.message}`);
+    if (e.status === 401) {
+      showLoggedOut("登入已過期，請重新登入。");
+      return;
     }
+    alert(`觸發失敗：${e.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = original;
   }
 }
 
-$("#api-key-input").value = state.apiKey;
-$("#save-key-btn").addEventListener("click", () => {
-  state.apiKey = $("#api-key-input").value.trim();
-  localStorage.setItem("fas_api_key", state.apiKey);
-  loadJobs();
-});
-$("#refresh-btn").addEventListener("click", loadJobs);
-
-if (state.apiKey) loadJobs();
+checkSession();

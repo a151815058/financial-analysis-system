@@ -46,6 +46,18 @@
 | 重複資料防護 | 依 `(market, ticker)` DB unique constraint 擋重複新增，回應 `409 Conflict` |
 | 外部查詢呼叫安全 | 美股 CIK 自動查詢固定呼叫 SEC 官方公開端點（白名單 URL，非使用者可控輸入），不構成 SSRF 風險 |
 
+## 五之二、REQ_014 追加安全需求（/admin 頁面帳號密碼登入，延伸 REQ_SEC_001）
+
+> out-of-band 追加（2026-07-15），比照 REQ_010~013 先例。
+
+| 項目 | 說明 |
+| :--- | :--- |
+| 密碼儲存 | 密碼明文從不落地儲存，僅存 bcrypt 雜湊值（`admin_users.password_hash`），與既有 API Key 之 SHA-256 雜湊策略一致精神（雜湊而非明文），bcrypt 另具內建 salt 與可調成本因子 |
+| Session 安全 | Session 以簽章 cookie 存放（Starlette `SessionMiddleware`），`httponly` 預設開啟防 JS 竊取、`same_site="lax"` 防 CSRF、正式環境（Render）啟用 `secure`（`SESSION_COOKIE_SECURE=true`）僅允許 HTTPS 傳輸；效期 8 小時 |
+| 驗證失敗訊息 | 帳號不存在與密碼錯誤一律回同一句「帳號或密碼錯誤」，不洩漏帳號是否存在，與既有 API Key 驗證失敗訊息策略一致 |
+| 既有 API 相容性 | `/api/v1/admin/jobs`、`/api/v1/admin/ingest/trigger` 改採 session 或 admin scope API Key 擇一驗證，既有程式化呼叫端不受影響 |
+| **已知限制** | 登入端點目前未實作失敗次數節流（rate limiting）/帳號鎖定機制，屬本次範圍外之已知限制（誠實揭露，非階段性限制）；bcrypt 本身的計算成本提供一定程度的暴力破解防禦，但非正式節流機制 |
+
 ## 五、適用安全構面對照（本專案，中級 medium）
 
 | 構面 | 主要適用階段 | 本專案關聯重點 |

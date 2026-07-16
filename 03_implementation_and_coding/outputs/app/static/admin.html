@@ -11,18 +11,60 @@
 
 <div class="topbar">
   <h1>排程執行狀況</h1>
-  <span class="disclaimer">需 admin 權限的 API Key</span>
-  <div class="apikey-form">
-    <span class="status-dot" id="status-dot"></span>
-    <input type="password" id="api-key-input" placeholder="X-API-Key" autocomplete="off">
-    <button id="save-key-btn" class="primary">連線</button>
-    <button id="refresh-btn">重新整理</button>
+  <span class="disclaimer">/admin 後台</span>
+  <div class="apikey-form" id="user-bar" hidden>
+    <span class="status-dot ok"></span>
+    <span id="username-label"></span>
+    <button id="change-password-btn">變更密碼</button>
+    <button id="logout-btn">登出</button>
+    <button id="refresh-btn" class="primary">重新整理</button>
   </div>
 </div>
 
 <main id="main-content">
-  <div class="empty-state" id="global-empty">請先於右上角輸入具 admin 權限的 API Key。</div>
+  <div class="login-wrap" id="login-wrap">
+    <div class="card login-card">
+      <h2>登入後台</h2>
+      <div id="login-msg"></div>
+      <form id="login-form">
+        <div class="field">
+          <label for="login-username">帳號</label>
+          <input type="text" id="login-username" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="login-password">密碼</label>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="primary" id="login-submit">登入</button>
+      </form>
+    </div>
+  </div>
 </main>
+
+<div class="modal-overlay" id="change-password-overlay" hidden>
+  <div class="modal">
+    <h2>變更密碼</h2>
+    <div id="change-password-msg"></div>
+    <form id="change-password-form">
+      <div class="field">
+        <label for="cp-current">現有密碼</label>
+        <input type="password" id="cp-current" autocomplete="current-password" required>
+      </div>
+      <div class="field">
+        <label for="cp-new">新密碼（至少 8 碼）</label>
+        <input type="password" id="cp-new" autocomplete="new-password" required minlength="8">
+      </div>
+      <div class="field">
+        <label for="cp-confirm">確認新密碼</label>
+        <input type="password" id="cp-confirm" autocomplete="new-password" required minlength="8">
+      </div>
+      <div class="actions">
+        <button type="button" id="change-password-cancel">取消</button>
+        <button type="submit" class="primary" id="change-password-submit">送出</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <footer>各公司各季度財務分析與股價預測系統 · 排程管理後台（<a href="/dashboard">回財務儀表板</a>）</footer>
 

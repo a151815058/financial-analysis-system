@@ -84,6 +84,14 @@
       "tests_added": 11,
       "total_tests": 97,
       "tests_added_breakdown": "10 項屬本次 REQ_013；另 1 項（test_root_redirects_to_dashboard）為前次 GET / 重導向修正時新增，先前未登錄於本檔案，一併於此次校正計入"
+    },
+    {
+      "id": "REQ_014",
+      "name": "/admin 頁面改為帳號密碼登入（session cookie），取代 API Key 輸入",
+      "added_at": "2026-07-15T03:00:00",
+      "note": "使用者要求把 /admin 頁面從貼 API Key 改成帳號密碼登入（或 Google 帳號，選了帳號密碼）。新增 admin_users 資料表 + bcrypt 密碼雜湊 + Starlette SessionMiddleware；/api/v1/admin/* 改為 session 或 admin scope API Key 擇一驗證，既有程式化呼叫端相容。/dashboard 與其餘 REST API 不受影響。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
+      "tests_added": 13,
+      "total_tests": 110
     }
   ],
   "phase_baseline_enabled": true,

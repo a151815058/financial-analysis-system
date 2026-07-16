@@ -5,6 +5,8 @@ SQLAlchemy==2.0.51
 requests==2.34.2
 python-dotenv==1.2.2
 APScheduler==3.11.3
+bcrypt==5.0.0
+itsdangerous==2.2.0
 pandas==3.0.3
 numpy==2.5.1
 scikit-learn==1.9.0

@@ -111,7 +111,8 @@
 ```
 
 ### POST /api/v1/admin/ingest/trigger
-- **說明**：手動觸發資料擷取/模型更新排程（對應 REQ_008，需 `admin` scope）
+- **說明**：手動觸發資料擷取/模型更新排程（對應 REQ_008，需 `admin` scope；REQ_014 起改為 `/admin`
+  頁面 session 登入或 admin scope API Key 擇一即可，兩種驗證方式並存）
 - **Request Body**：
 ```json
 { "task": "mops_ingest" }
@@ -122,7 +123,7 @@
 - **REQ_013 追加**：手動觸發之執行結果會以 `trigger_mode: "manual"` 記錄於 `job_runs`（見下方 `GET /admin/jobs`），與排程自動觸發（`trigger_mode: "scheduled"`）區分
 
 ### GET /api/v1/admin/jobs
-- **說明**：列出目前排程中的 6 個任務、下次排定執行時間，以及最新一次執行結果（對應 REQ_013，需 `admin` scope）
+- **說明**：列出目前排程中的 6 個任務、下次排定執行時間，以及最新一次執行結果（對應 REQ_013，需 `admin` scope；REQ_014 起與上方 `POST .../trigger` 同樣支援 session 或 API Key 擇一驗證）
 - **回應** `200 OK`：
 ```json
 [
@@ -143,7 +144,28 @@
 - **權限不足**：`403 Forbidden`
 
 ### GET /admin
-- **說明**：排程執行狀況頁面（REQ_013），與 `/dashboard` 分開之獨立靜態頁面，需具 `admin` scope 之 API Key 才能查看/操作內容（頁面本身不需驗證，驗證發生在頁面對 `/api/v1/admin/*` 的呼叫）。提供 6 個任務的狀態表格與「立即執行」手動觸發按鈕。
+- **說明**：排程執行狀況頁面（REQ_013），與 `/dashboard` 分開之獨立靜態頁面。頁面本身不需驗證；
+  REQ_014 起改為帳號密碼登入（session cookie）：未登入時顯示登入卡片，登入成功才顯示排程狀態
+  表格與「立即執行」手動觸發按鈕。
+
+### POST /api/v1/auth/login
+- **說明**：`/admin` 頁面登入（REQ_014）
+- **Request Body**：`{ "username": "...", "password": "..." }`
+- **回應** `200 OK`：`{ "username": "..." }`，並於回應設定 session cookie（`fas_admin_session`）
+- **錯誤** `401 Unauthorized`：帳號或密碼錯誤（不論是帳號不存在或密碼錯誤，訊息一律相同）
+
+### POST /api/v1/auth/logout
+- **說明**：登出，清除 session（REQ_014）
+- **回應** `204 No Content`
+
+### GET /api/v1/auth/me
+- **說明**：查詢目前登入狀態（REQ_014），供 `/admin` 頁面載入時判斷是否已登入
+- **回應** `200 OK`：`{ "username": "..." }`；未登入 → `401 Unauthorized`
+
+### POST /api/v1/auth/change-password
+- **說明**：登入後自行變更密碼（REQ_014，需先登入，不接受 API Key）
+- **Request Body**：`{ "current_password": "...", "new_password": "..."（至少 8 碼） }`
+- **回應** `204 No Content`；現有密碼錯誤 → `401 Unauthorized`；未登入 → `401 Unauthorized`
 
 ## 三、免責聲明（所有回應皆應附帶）
 

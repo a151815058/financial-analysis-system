@@ -153,3 +153,14 @@ CREATE TABLE job_runs (
     detail        VARCHAR(1000)                              -- 失敗時之錯誤訊息摘要，成功時為 NULL
 );
 COMMENT ON TABLE job_runs IS 'REQ_013：每個排程任務僅保留最新一筆執行結果（非歷史紀錄），執行時 upsert 覆寫';
+
+-- ---------------------------------------------------------------------------
+-- 9. admin_users — /admin 頁面帳號密碼登入（REQ_014）
+-- ---------------------------------------------------------------------------
+CREATE TABLE admin_users (
+    user_id        BIGSERIAL PRIMARY KEY,
+    username        VARCHAR(50)  NOT NULL UNIQUE,
+    password_hash   VARCHAR(100) NOT NULL,          -- bcrypt 雜湊值，明文密碼從不落地
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+COMMENT ON TABLE admin_users IS 'REQ_014：/admin 頁面帳號密碼登入用之後台管理者帳號，與 api_keys 分開管理';

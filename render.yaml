@@ -23,3 +23,7 @@ services:
         value: "3"
       - key: MIN_SECURITY_SCORE_PCT
         value: "70"
+      - key: SESSION_SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "true"

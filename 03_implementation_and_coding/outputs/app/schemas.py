@@ -117,6 +117,20 @@ class JobStatusOut(BaseModel):
     last_run: JobRunOut | None = None
 
 
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=50)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class MeOut(BaseModel):
+    username: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=8, max_length=200)
+
+
 class IngestTriggerRequest(BaseModel):
     task: Literal[
         "mops_ingest", "sec_edgar_ingest", "price_ingest", "model_retrain", "weekly_predict", "weekly_backtest"

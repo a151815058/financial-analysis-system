@@ -42,6 +42,16 @@
 | SSRF（CIK 自動查詢） | 若查詢 URL 可被使用者輸入操控 | 可能被利用發起任意內部/外部請求 | 查詢 URL 為程式碼內固定白名單常數（`https://www.sec.gov/files/company_tickers.json`），不接受任何使用者輸入拼接 | 構面 6 |
 | 重複/競態寫入 | 短時間內重複送出相同公司 | 資料重複或競態條件下違反唯一性 | DB 層 `UNIQUE (market, ticker)` constraint 為最終把關，應用層 409 檢查僅為友善錯誤訊息 | 構面 7 |
 
+## 三之二、REQ_014 帳號密碼登入威脅分析（out-of-band，2026-07-15 追加）
+
+| 類別 | 威脅情境 | 影響 | 對應措施 | 構面 |
+| :--- | :--- | :--- | :--- | :--- |
+| **S**poofing | 攻擊者暴力猜測帳號密碼 | 冒充後台管理者 | bcrypt 雜湊本身計算成本提供一定防禦；**已知限制**：尚未實作登入失敗節流/帳號鎖定，見 `security_requirements.md` §五之二 | 構面 1、4 |
+| **T**ampering / Session hijack | 竊取 session cookie 後冒用登入狀態 | 未授權操作排程 | Session cookie 設 `httponly`（防 JS 竊取）、正式環境 `secure`（僅 HTTPS 傳輸）、`same_site=lax`（防 CSRF 跨站夾帶）、8 小時效期到期即失效 | 構面 6 |
+| **I**nformation Disclosure | 登入錯誤訊息洩漏帳號是否存在 | 便於攻擊者列舉有效帳號 | 帳號不存在與密碼錯誤一律回同一句「帳號或密碼錯誤」 | 構面 1 |
+| **T**ampering | 密碼於傳輸/儲存過程外洩 | 帳號被冒用 | 密碼雜湊（bcrypt，含 salt）儲存，明文不落地；傳輸仰賴既有 HTTPS 要求（見四、階段性限制說明） | 構面 6、7 |
+| **E**levation of Privilege | 一般 read scope API Key 誤用於呼叫 `/api/v1/admin/*` | 未授權觸發排程 | `require_admin_access` 仍檢查 API Key 之 admin scope（未通過回 403），與 session 登入並存但不互相降低門檻 | 構面 1、4 |
+
 ## 四、階段性限制說明
 
 - 本機開發環境暫未配置正式 TLS 憑證，構面 6 之 HTTPS 要求於 Phase 05 部署至正式環境後方能完整驗證，屬**階段性限制**，非設計缺陷。

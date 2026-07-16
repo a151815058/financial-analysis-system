@@ -9,10 +9,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
+from app.config import settings
 from app.db_session import init_db
 from app.jobs import run_mops_ingest, run_price_ingest, run_sec_edgar_ingest, track_job
-from app.routers import admin, companies, predictions
+from app.routers import admin, auth, companies, predictions
 from app.scheduler import build_scheduler
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -61,9 +63,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# REQ_014：/admin 頁面帳號密碼登入用之簽章 session cookie（Starlette 內建，免建 session 資料表）。
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret_key,
+    session_cookie="fas_admin_session",
+    max_age=8 * 3600,
+    https_only=settings.session_cookie_secure,
+    same_site="lax",
+)
+
 app.include_router(companies.router)
 app.include_router(predictions.router)
 app.include_router(admin.router)
+app.include_router(auth.router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -85,5 +98,7 @@ def dashboard() -> FileResponse:
 
 @app.get("/admin", tags=["system"])
 def admin_page() -> FileResponse:
-    """排程執行狀況頁面（REQ_013），需 admin scope API Key，與 /dashboard 分開。"""
+    """排程執行狀況頁面（REQ_013），與 /dashboard 分開。REQ_014：頁面本身改為帳號密碼登入
+    （session cookie），頁面靜態檔案不需驗證，驗證發生在頁面對 /api/v1/auth、/api/v1/admin 的呼叫。
+    """
     return FileResponse(STATIC_DIR / "admin.html")

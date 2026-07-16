@@ -21,6 +21,10 @@ class Settings:
     http_timeout_seconds: float = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
     http_max_retries: int = int(os.getenv("HTTP_MAX_RETRIES", "3"))
     min_security_score_pct: int = int(os.getenv("MIN_SECURITY_SCORE_PCT", "70"))
+    # REQ_014：/admin 頁面帳號密碼登入之 session cookie。正式環境務必由環境變數提供
+    # SESSION_SECRET_KEY（render.yaml 使用 generateValue 自動產生），預設值僅供本機開發使用。
+    session_secret_key: str = os.getenv("SESSION_SECRET_KEY", "dev-only-insecure-secret-change-me")
+    session_cookie_secure: bool = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
 
 settings = Settings()

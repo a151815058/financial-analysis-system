@@ -19,6 +19,7 @@
 | REQ_011 | 使用者口述（Phase 06 後追加，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(POST /api/v1/companies)<br>`threat_model.md` §三之一 | `app/routers/companies.py`（POST 端點）、`app/schemas.py`（`CompanyCreateRequest`）、`app/ingestion/sec_edgar_client.py`（`lookup_cik`）、`app/jobs.py`（新檔）、`app/static/dashboard.{html,css,js}`（新增公司表單） | `tests/test_api_companies.py`（新增 6 項）、`tests/test_cik_lookup.py`（4 項）、`tests/test_jobs.py`（3 項） | 隨 app 容器一併部署（無獨立服務）；排程任務現會真實呼叫外部 API，見 §五之提醒 | 補於本文件下方「REQ_011 補充說明」 | `[已驗證]` |
 | REQ_012 | 使用者口述（REQ_011 之延伸，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(GET /api/v1/companies/search) | `app/routers/companies.py`(`GET /search`)、`app/ingestion/mops_client.py`(`search_companies`，重用既有損益表端點)、`app/ingestion/sec_edgar_client.py`(`search_companies`，擴充既有 ticker 對照表快取)、`app/static/dashboard.{html,css,js}`（新增公司表單改為代碼/名稱擇一輸入之搜尋建議） | `tests/test_api_companies.py`（新增 3 項）、`tests/test_mops_client.py`（新增 4 項）、`tests/test_cik_lookup.py`（新增 4 項） | 隨 app 容器一併部署（無獨立服務） | 補於本文件下方「REQ_012 補充說明」 | `[已驗證]` |
 | REQ_013 | 使用者口述（out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(GET /api/v1/admin/jobs、GET /admin) | `app/db_models.py`(`JobRun`)、`app/jobs.py`(`track_job`)、`app/routers/admin.py`(`GET /jobs` 擴充、`trigger_ingest` 帶 `trigger_mode`)、`app/static/admin.{html,js}`（新頁面）、`app/main.py`(`GET /admin` 路由、`job_functions` 全數包上 `track_job`) | `tests/test_jobs.py`（新增 4 項）、`tests/test_admin_jobs.py`（3 項）、`tests/test_admin_page.py`（3 項） | 隨 app 容器一併部署（無獨立服務）；`job_runs` 為新資料表，`init_db()` 之 `Base.metadata.create_all` 於下次啟動時自動建立，無需手動 migration（與 HF-004 之 ALTER TABLE 情境不同） | 補於本文件下方「REQ_013 補充說明」 | `[已驗證]` |
+| REQ_014 | 使用者口述（out-of-band，REQ_013 之延伸） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(/api/v1/auth/*)、`threat_model.md` §三之二 | `app/auth.py`(`hash_password`/`verify_password`/`require_admin_access`/`require_session_login`)、`app/routers/auth.py`（新檔）、`app/db_models.py`(`AdminUser`)、`app/main.py`(`SessionMiddleware`)、`app/static/admin.{html,js}`（登入卡片、變更密碼 modal） | `tests/test_api_auth.py`（10 項）、`tests/test_admin_jobs.py`（新增 3 項） | 隨 app 容器一併部署；`admin_users` 為新資料表，`init_db()` 自動建立，無需手動 migration | 補於本文件下方「REQ_014 補充說明」 | `[已驗證]` |
 
 > 說明：`[不連貫警告]` 為框架標準狀態標記，表示該需求尚未貫穿所有階段。Phase 06（維護與營運）已於 2026-07-15 完成第一輪，REQ_001/002/003/007/SEC_001/010 已因本輪真實資料擷取與熱修補而更新為 `[已驗證]`；REQ_004/005/006/009 仍標記 `[不連貫警告]`，原因是模型預測/回測尚未對真實資料執行（非監控或測試機制缺陷，見 `06_maintenance/outputs/monitoring_dashboard.md`）。REQ_008 已因 REQ_011（同日 out-of-band 追加）補齊 3 個資料擷取任務的真實邏輯而更新為 `[已驗證]`，模型類任務的限制併入 REQ_004/005/006 之既有已知限制範圍，不再視為 REQ_008 本身之缺口。
 >
@@ -108,6 +109,30 @@
   時自動建立，不需額外對正式資料庫手動執行 SQL。
 - **驗證方式**：新增 10 項自動化測試（`track_job` 成功/失敗/手動觸發/upsert 各案例、
   `GET /api/v1/admin/jobs` 含執行結果與權限檢查、`/admin` 頁面路由），既有測試無回歸。
+
+## REQ_014 補充說明：/admin 頁面帳號密碼登入
+
+> 使用者升級 Render 方案、確認排程可穩定執行後，覺得 `/admin` 用貼 API Key 的方式不夠像正規後台
+> 登入，要求改成帳號密碼（或 Google 帳號，兩者擇一，選了帳號密碼因為現在就能直接完成，不需要
+> 使用者先去 Google Cloud Console 建 OAuth 憑證）。範圍確認僅限 `/admin` 頁面本身；`/dashboard`
+> 與既有 REST API（`companies`/`predictions`）維持現有 `X-API-Key` 機制不變。
+
+- **Session 機制**：Starlette 內建 `SessionMiddleware`（簽章 cookie，免建 session 資料表），密碼
+  以 bcrypt 雜湊儲存於新資料表 `admin_users`。
+- **既有 API 相容性**：`/api/v1/admin/jobs`、`/api/v1/admin/ingest/trigger` 改為「session 登入或
+  admin scope API Key 擇一即可」（`require_admin_access`），而非完全捨棄 API Key，避免破壞既有
+  REQ_008 定義之程式化呼叫端相容性；401/403 語意與既有 API Key 驗證一致（金鑰無效→401，scope
+  不足→403）。
+- **UX 流程**：頁面載入時不直接顯示排程表格，先呼叫 `GET /api/v1/auth/me` 靜默檢查既有 session；
+  沒有則顯示登入卡片，登入成功才淡入顯示排程狀態表格與操作按鈕（符合使用者要求之「點擊按鈕後
+  才可以出現」）。另提供「變更密碼」功能（重用既有 `.modal-overlay`/`.modal` 樣式），讓使用者能
+  自行更換我透過對話明碼告知的初始密碼。
+- **已知限制**：登入端點尚未實作失敗次數節流/帳號鎖定機制，詳見 `security_requirements.md`
+  §五之二；Google 帳號登入選項因需使用者先行於 Google Cloud Console 建立 OAuth 憑證，本次未採用，
+  日後如需要可在現有帳號密碼架構上以獨立登入方式並存加入。
+- **驗證方式**：新增 13 項自動化測試（密碼雜湊 round-trip、登入成功/失敗/帳號不存在同訊息、
+  `/me`、登出、變更密碼成功/失敗、session 不帶 API Key 也能存取排程端點、兩者皆無時拒絕），既有
+  106 項測試無回歸；已對真實 Supabase 建立首筆帳號並實測登入/查詢/觸發/登出完整流程。
 
 ## 框架瑕疵回饋（詳見根目錄 `待辦事項.md`）
 

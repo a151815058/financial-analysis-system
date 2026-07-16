@@ -1,4 +1,4 @@
-"""管理員排程觸發端點（REQ_008，需 admin scope）。"""
+"""管理員排程觸發端點（REQ_008，需 admin scope 之 session 登入或 API Key）。"""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.audit import record as record_audit
-from app.auth import AuthContext, require_admin_scope
+from app.auth import AdminAccessContext, require_admin_access
 from app.db_models import JobRun
 from app.db_session import get_session
 from app.routers.companies import _client_ip
@@ -23,7 +23,7 @@ def trigger_ingest(
     payload: IngestTriggerRequest,
     request: Request,
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_admin_scope),
+    auth: AdminAccessContext = Depends(require_admin_access),
 ) -> IngestTriggerResponse:
     # 實際排程任務由 app/scheduler.py 之 APScheduler job store 執行；此端點負責將
     # 對應任務排入該 job store 立即執行一次（不阻塞本次請求），並記錄稽核日誌。
@@ -45,7 +45,7 @@ def trigger_ingest(
         action=f"admin.ingest.trigger.{payload.task}",
         result="SUCCESS",
         source_ip=_client_ip(request),
-        detail={"task": payload.task, "mode": "manual"},
+        detail={"task": payload.task, "mode": "manual", "auth_method": auth.method},
     )
     return IngestTriggerResponse(task=payload.task, status="accepted")
 
@@ -54,7 +54,7 @@ def trigger_ingest(
 def list_jobs(
     request: Request,
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_admin_scope),
+    auth: AdminAccessContext = Depends(require_admin_access),
 ) -> list[dict]:
     """列出目前排程中的任務、下次執行時間，以及最新一次執行狀況（REQ_013）。"""
     scheduler = request.app.state.scheduler

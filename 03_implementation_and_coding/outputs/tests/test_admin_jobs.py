@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import datetime as dt
 
-from app.db_models import JobRun
+from sqlalchemy import select
+
+from app.db_models import AuditLog, JobRun
 
 EXPECTED_TASKS = {
     "mops_ingest",
@@ -50,3 +52,33 @@ def test_list_jobs_includes_last_run_status(client, admin_api_key, db_session):
 def test_list_jobs_requires_admin_scope(client, read_api_key):
     response = client.get("/api/v1/admin/jobs", headers={"X-API-Key": read_api_key})
     assert response.status_code == 403
+
+
+def test_list_jobs_accepts_session_login_without_api_key(client, admin_user):
+    """REQ_014：/admin 頁面改走 session 登入後，不帶 X-API-Key 也應能查詢排程狀態。"""
+    username, password = admin_user
+    login = client.post("/api/v1/auth/login", json={"username": username, "password": password})
+    assert login.status_code == 200
+
+    response = client.get("/api/v1/admin/jobs")  # 不帶 X-API-Key，僅靠 session cookie
+    assert response.status_code == 200
+    assert {job["id"] for job in response.json()} == EXPECTED_TASKS
+
+
+def test_list_jobs_rejects_when_neither_session_nor_api_key(client):
+    response = client.get("/api/v1/admin/jobs")
+    assert response.status_code == 401
+
+
+def test_trigger_ingest_accepts_session_login_without_api_key(client, admin_user, db_session):
+    username, password = admin_user
+    client.post("/api/v1/auth/login", json={"username": username, "password": password})
+
+    response = client.post("/api/v1/admin/ingest/trigger", json={"task": "model_retrain"})
+    assert response.status_code == 202
+
+    log = db_session.execute(
+        select(AuditLog).where(AuditLog.action == "admin.ingest.trigger.model_retrain")
+    ).scalar_one()
+    assert log.api_key_id is None
+    assert log.detail["auth_method"] == "session"

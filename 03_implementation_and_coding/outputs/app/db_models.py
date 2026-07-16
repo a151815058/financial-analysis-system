@@ -168,6 +168,17 @@ class ApiKey(Base):
     __table_args__ = (CheckConstraint("scope IN ('read', 'admin')", name="ck_api_keys_scope"),)
 
 
+class AdminUser(Base):
+    """`/admin` 頁面帳號密碼登入用之後台管理者帳號（REQ_014），與 api_keys 分開管理。"""
+
+    __tablename__ = "admin_users"
+
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class JobRun(Base):
     """排程任務最新一次執行狀況（REQ_013）。每個 task_name 僅保留最新一筆，執行時 upsert 覆寫。"""
 

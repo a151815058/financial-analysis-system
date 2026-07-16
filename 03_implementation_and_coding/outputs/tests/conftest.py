@@ -7,8 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import db_session as db_session_module
-from app.auth import hash_api_key
-from app.db_models import ApiKey, Base
+from app.auth import hash_api_key, hash_password
+from app.db_models import AdminUser, ApiKey, Base
 from app.db_session import get_session
 from app.main import app
 
@@ -53,6 +53,16 @@ def admin_api_key(db_session) -> str:
     db_session.add(ApiKey(key_hash=hash_api_key(raw_key), owner="tester-admin", scope="admin"))
     db_session.commit()
     return raw_key
+
+
+@pytest.fixture()
+def admin_user(db_session) -> tuple[str, str]:
+    """REQ_014：/admin 帳號密碼登入測試用之後台帳號，回傳 (username, plaintext_secret)。"""
+    username = "tester-admin-user"
+    plaintext_secret = "correct-horse-battery-staple"
+    db_session.add(AdminUser(username=username, password_hash=hash_password(plaintext_secret)))
+    db_session.commit()
+    return username, plaintext_secret
 
 
 @pytest.fixture()
