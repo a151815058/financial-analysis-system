@@ -8,10 +8,12 @@
 
 | 項目 | 說明 |
 | :--- | :--- |
-| 認證機制 | 所有端點皆須於 Header 帶入 `X-API-Key`，伺服器比對 `api_keys.key_hash` |
-| 授權範圍 (scope) | `read`：可查詢財務指標/股價/預測結果；`admin`：額外可觸發排程任務 |
-| 失敗回應 | 金鑰缺失或無效 → `401 Unauthorized`；權限不足 → `403 Forbidden` |
+| 認證機制 | 查詢類端點（`GET /api/v1/companies*`）自 REQ_015 起**改為公開瀏覽，不強制帶 `X-API-Key`**；若仍帶入則伺服器照樣比對 `api_keys.key_hash` 並記錄於稽核日誌（`auth_method`）。寫入/管理類端點（`POST /api/v1/companies`、`/api/v1/admin/*`）維持原機制，須帶 `X-API-Key` 或（`/api/v1/admin/*`）登入 session |
+| 授權範圍 (scope) | `read`：可查詢財務指標/股價/預測結果（現亦對匿名開放）；`admin`：額外可新增公司/觸發排程任務 |
+| 失敗回應 | 查詢類端點：僅在**主動附上**卻無效/已撤銷的金鑰時回 `401`，完全未附憑證視為匿名放行；寫入/管理類端點：金鑰缺失或無效 → `401 Unauthorized`，權限不足 → `403 Forbidden` |
 | 傳輸安全 | 全站強制 HTTPS（🔒 構面 6：系統與通訊保護），本地開發環境除外並於報告中註記為階段性限制 |
+
+> **REQ_015（2026-07-15，out-of-band）**：`/dashboard` 前端移除 API Key 輸入框，改為公開瀏覽 + 選擇性登入。查詢類端點（`GET /api/v1/companies`、`.../search`、`.../financials`、`.../prices`、`.../predictions/latest`、`.../predictions/history`、`.../backtest`）不再要求任何驗證即可存取；`POST /api/v1/companies`（新增公司）與 `/api/v1/admin/*` 仍需登入 session 或對應 scope 之 API Key。此決定與 `security_requirements.md` 原始構面 1（存取控制）方向相反，詳見該文件「五之三」之風險說明與理由。
 
 ## 二、端點清單
 

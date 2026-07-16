@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import record as record_audit
-from app.auth import AuthContext, require_api_key
+from app.auth import OptionalReadAccessContext, optional_read_access
 from app.db_models import Company, Prediction, PredictionBacktest
 from app.db_session import get_session
 from app.routers.companies import _client_ip
@@ -62,7 +62,7 @@ def get_latest_prediction(
     ticker: str,
     market: str = Query(pattern="^(TW|US)$"),
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_api_key),
+    auth: OptionalReadAccessContext = Depends(optional_read_access),
 ) -> PredictionOut:
     company = _get_company_or_404(session, ticker, market)
     prediction = session.execute(
@@ -82,6 +82,7 @@ def get_latest_prediction(
         resource=f"{market}:{ticker}",
         result="SUCCESS",
         source_ip=_client_ip(request),
+        detail={"auth_method": auth.method},
     )
     return _to_prediction_out(ticker, market, prediction)
 
@@ -93,7 +94,7 @@ def get_prediction_history(
     market: str = Query(pattern="^(TW|US)$"),
     weeks: int = Query(default=12, ge=1, le=104),
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_api_key),
+    auth: OptionalReadAccessContext = Depends(optional_read_access),
 ) -> list[PredictionOut]:
     company = _get_company_or_404(session, ticker, market)
     predictions = (
@@ -114,6 +115,7 @@ def get_prediction_history(
         resource=f"{market}:{ticker}",
         result="SUCCESS",
         source_ip=_client_ip(request),
+        detail={"auth_method": auth.method},
     )
     return [_to_prediction_out(ticker, market, p) for p in predictions]
 
@@ -125,7 +127,7 @@ def get_backtest(
     market: str = Query(pattern="^(TW|US)$"),
     weeks: int = Query(default=12, ge=1, le=104),
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_api_key),
+    auth: OptionalReadAccessContext = Depends(optional_read_access),
 ) -> BacktestResponse:
     company = _get_company_or_404(session, ticker, market)
     records = (
@@ -154,6 +156,7 @@ def get_backtest(
         resource=f"{market}:{ticker}",
         result="SUCCESS",
         source_ip=_client_ip(request),
+        detail={"auth_method": auth.method},
     )
     return BacktestResponse(
         ticker=ticker,

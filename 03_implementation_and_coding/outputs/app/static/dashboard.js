@@ -2,7 +2,7 @@
 // 無外部相依（不使用 CDN charting library），SVG 圖表為手刻實作。
 
 const state = {
-  apiKey: localStorage.getItem("fas_api_key") || "",
+  loggedIn: false,
   companies: [],
   selectedTicker: "",
   selectedMarket: "",
@@ -20,7 +20,7 @@ async function apiGet(path, params = {}) {
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
   });
-  const res = await fetch(url, { headers: { "X-API-Key": state.apiKey } });
+  const res = await fetch(url, { credentials: "same-origin" });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const err = new Error(body.detail ? JSON.stringify(body.detail) : `HTTP ${res.status}`);
@@ -33,7 +33,8 @@ async function apiGet(path, params = {}) {
 async function apiPost(path, body) {
   const res = await fetch(new URL(path, window.location.origin), {
     method: "POST",
-    headers: { "X-API-Key": state.apiKey, "Content-Type": "application/json" },
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
@@ -46,8 +47,10 @@ async function apiPost(path, body) {
 }
 
 // ---------------------------------------------------------------------------
-// Bootstrap / connection
+// Bootstrap / 登入狀態
 // ---------------------------------------------------------------------------
+// REQ_015：查看資料（公司清單/財務/股價/預測/回測）公開瀏覽，不需登入；
+// 登入 session 僅用來解鎖「新增公司」（寫入操作，見下方 add-company modal）。
 
 function setStatus(ok) {
   const dot = $("#status-dot");
@@ -55,8 +58,31 @@ function setStatus(ok) {
   dot.classList.add(ok ? "ok" : "err");
 }
 
+function showLoggedOut() {
+  state.loggedIn = false;
+  $("#auth-username").hidden = true;
+  $("#logout-btn").hidden = true;
+  $("#login-btn").hidden = false;
+}
+
+function showLoggedIn(username) {
+  state.loggedIn = true;
+  $("#auth-username").textContent = `已登入：${username}`;
+  $("#auth-username").hidden = false;
+  $("#logout-btn").hidden = false;
+  $("#login-btn").hidden = true;
+}
+
+async function checkSession() {
+  try {
+    const me = await apiGet("/api/v1/auth/me");
+    showLoggedIn(me.username);
+  } catch (e) {
+    showLoggedOut();
+  }
+}
+
 async function tryConnect() {
-  if (!state.apiKey) return;
   try {
     const companies = await apiGet("/api/v1/companies", { market: state.selectedMarket });
     state.companies = companies;
@@ -66,11 +92,7 @@ async function tryConnect() {
     setStatus(false);
     state.companies = [];
     populateCompanySelect();
-    if (e.status === 401) {
-      renderGlobalMessage("API Key 無效或已撤銷，請重新確認後再試一次。");
-    } else {
-      renderGlobalMessage(`無法載入公司清單：${e.message}`);
-    }
+    renderGlobalMessage(`無法載入公司清單：${e.message}`);
   }
 }
 
@@ -544,12 +566,17 @@ function drawPriceChart(container, points, extraSeries, opts = {}) {
 // Wiring
 // ---------------------------------------------------------------------------
 
-$("#api-key-input").value = state.apiKey;
+$("#login-btn").addEventListener("click", () => {
+  window.location.href = "/admin?next=" + encodeURIComponent(window.location.pathname);
+});
 
-$("#save-key-btn").addEventListener("click", () => {
-  state.apiKey = $("#api-key-input").value.trim();
-  localStorage.setItem("fas_api_key", state.apiKey);
-  tryConnect();
+$("#logout-btn").addEventListener("click", async () => {
+  try {
+    await apiPost("/api/v1/auth/logout", {});
+  } catch (e) {
+    // 忽略登出本身的錯誤，仍然回到未登入畫面
+  }
+  showLoggedOut();
 });
 
 $("#market-select").addEventListener("change", (e) => {
@@ -635,7 +662,7 @@ function renderSearchResults(results) {
 }
 
 const runCompanySearch = debounce(async (query) => {
-  if (!state.apiKey || query.trim().length === 0) {
+  if (query.trim().length === 0) {
     hideSearchResults();
     return;
   }
@@ -672,8 +699,8 @@ addCompanyForm.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   addCompanyMsg.innerHTML = "";
 
-  if (!state.apiKey) {
-    showAddCompanyError("請先於右上角設定有效的 API Key。");
+  if (!state.loggedIn) {
+    showAddCompanyError("請先於右上角登入後再新增公司。");
     return;
   }
 
@@ -710,13 +737,15 @@ addCompanyForm.addEventListener("submit", async (ev) => {
       addCikField.hidden = false;
       showAddCompanyError(e.message || "查無對應之 CIK，請手動輸入。");
     } else if (e.status === 403) {
-      showAddCompanyError("新增公司需要 admin 權限的 API Key。");
+      showAddCompanyError("新增公司需要 admin 權限。");
     } else if (e.status === 401) {
-      showAddCompanyError("API Key 無效或已撤銷，請重新確認後再試一次。");
+      showAddCompanyError("登入已過期，請重新登入。");
+      showLoggedOut();
     } else {
       showAddCompanyError(`新增失敗：${e.message}`);
     }
   }
 });
 
-if (state.apiKey) tryConnect();
+checkSession();
+tryConnect();

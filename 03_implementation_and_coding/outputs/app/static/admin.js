@@ -39,6 +39,16 @@ function escapeHtml(s) {
 // 登入 / 登出 / 變更密碼（REQ_014）
 // ---------------------------------------------------------------------------
 
+// REQ_015：/dashboard 的「登入」按鈕會帶 ?next= 導回原頁面；僅接受站內相對路徑
+// （必須以單一 "/" 開頭、不可為 "//" 開頭、不可含 "://"），避免被利用做開放式導向。
+function safeNextPath() {
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (next && next.startsWith("/") && !next.startsWith("//") && !next.includes("://")) {
+    return next;
+  }
+  return null;
+}
+
 const loginWrap = $("#login-wrap");
 const userBar = $("#user-bar");
 const loginForm = $("#login-form");
@@ -58,6 +68,11 @@ function showLoggedOut(message) {
 }
 
 function showLoggedIn(username) {
+  const next = safeNextPath();
+  if (next) {
+    window.location.href = next;
+    return;
+  }
   loginWrap.hidden = true;
   userBar.hidden = false;
   $("#username-label").textContent = `已登入：${username}`;
@@ -83,11 +98,8 @@ loginForm.addEventListener("submit", async (ev) => {
       username: $("#login-username").value.trim(),
       password: $("#login-password").value,
     });
-    loginWrap.hidden = true;
-    userBar.hidden = false;
     userBar.classList.add("fade-in");
-    $("#username-label").textContent = `已登入：${me.username}`;
-    loadJobs();
+    showLoggedIn(me.username);
   } catch (e) {
     loginMsg.innerHTML = `<div class="form-msg error">${escapeHtml(e.message || "帳號或密碼錯誤")}</div>`;
   } finally {

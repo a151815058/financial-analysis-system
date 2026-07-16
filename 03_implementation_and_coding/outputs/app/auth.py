@@ -115,3 +115,44 @@ def require_admin_access(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="需登入（/admin 頁面）或提供 admin scope 之 API Key",
     )
+
+
+# ---------------------------------------------------------------------------
+# REQ_015：/dashboard 查詢類端點改為公開瀏覽（不需登入/API Key），新增公司等寫入
+# 操作仍需登入或 admin scope 之 API Key（見 require_admin_access）。
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class OptionalReadAccessContext:
+    method: Literal["session", "apikey", "anonymous"]
+    api_key_id: int | None
+    admin_user_id: int | None
+
+
+def optional_read_access(
+    request: Request,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    session: Session = Depends(get_session),
+) -> OptionalReadAccessContext:
+    """給 /dashboard 所呼叫的查詢端點用：不要求任何驗證即可存取（公開瀏覽）。
+
+    若請求仍附帶 session 登入或 X-API-Key，會辨識並記錄在稽核日誌的 auth_method
+    （沿用既有 API Key 呼叫端的可歸責性）；但兩者皆缺席時不再視為錯誤，一律視為
+    匿名瀏覽放行。唯獨主動附上的 X-API-Key 若無效/已撤銷仍視為錯誤（401），避免
+    誤植金鑰卻被靜默當成匿名請求而難以察覺。
+    """
+    admin_user_id = request.session.get("admin_user_id")
+    if admin_user_id:
+        return OptionalReadAccessContext(method="session", api_key_id=None, admin_user_id=admin_user_id)
+
+    if x_api_key:
+        key_hash = hash_api_key(x_api_key)
+        record = session.execute(
+            select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.revoked_at.is_(None))
+        ).scalar_one_or_none()
+        if record is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or revoked API key")
+        return OptionalReadAccessContext(method="apikey", api_key_id=record.api_key_id, admin_user_id=None)
+
+    return OptionalReadAccessContext(method="anonymous", api_key_id=None, admin_user_id=None)

@@ -185,9 +185,12 @@ def test_search_companies_us_delegates_to_sec_directory(client, read_api_key, mo
     assert response.json() == [{"ticker": "AAPL", "name": "Apple Inc.", "market": "US"}]
 
 
-def test_search_companies_requires_api_key(client):
+def test_search_companies_is_public_without_api_key(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.companies.search_tw_companies", lambda q: [{"ticker": "2330", "name": "台積電", "market": "TW"}]
+    )
     response = client.get("/api/v1/companies/search", params={"market": "TW", "q": "2330"})
-    assert response.status_code == 401
+    assert response.status_code == 200
 
 
 def test_create_company_requires_admin_scope(client, read_api_key):
@@ -218,3 +221,43 @@ def test_get_prices_returns_range(client, read_api_key, db_session):
     prices = response.json()["prices"]
     assert len(prices) == 1
     assert prices[0]["close_price"] == 103.0
+
+
+# ---------------------------------------------------------------------------
+# REQ_015：/dashboard 查詢類端點改為公開瀏覽；session/API Key 仍可辨識並記錄於稽核日誌
+# ---------------------------------------------------------------------------
+
+
+def test_list_companies_accepts_session_login_without_api_key(client, admin_user, db_session):
+    username, password = admin_user
+    login = client.post("/api/v1/auth/login", json={"username": username, "password": password})
+    assert login.status_code == 200
+
+    response = client.get("/api/v1/companies")  # 不帶 X-API-Key，僅靠 session cookie
+    assert response.status_code == 200
+
+    log = db_session.execute(select(AuditLog).where(AuditLog.action == "companies.list")).scalar_one()
+    assert log.api_key_id is None
+    assert log.detail["auth_method"] == "session"
+
+
+def test_list_companies_accessible_without_session_or_api_key(client, db_session):
+    """公開瀏覽：既無 session 也無 X-API-Key 時，稽核日誌仍留下 auth_method=anonymous 的紀錄。"""
+    response = client.get("/api/v1/companies")
+    assert response.status_code == 200
+
+    log = db_session.execute(select(AuditLog).where(AuditLog.action == "companies.list")).scalar_one()
+    assert log.api_key_id is None
+    assert log.detail["auth_method"] == "anonymous"
+
+
+def test_create_company_accepts_session_login_without_api_key(client, admin_user):
+    """/dashboard 的新增公司彈窗改用登入 session；任何已登入帳號視為具管理權限（比照 /admin）。"""
+    username, password = admin_user
+    client.post("/api/v1/auth/login", json={"username": username, "password": password})
+
+    response = client.post(
+        "/api/v1/companies",
+        json={"market": "TW", "ticker": "2317", "name": "鴻海"},
+    )
+    assert response.status_code == 201

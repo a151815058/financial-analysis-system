@@ -20,6 +20,7 @@
 | REQ_012 | 使用者口述（REQ_011 之延伸，out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(GET /api/v1/companies/search) | `app/routers/companies.py`(`GET /search`)、`app/ingestion/mops_client.py`(`search_companies`，重用既有損益表端點)、`app/ingestion/sec_edgar_client.py`(`search_companies`，擴充既有 ticker 對照表快取)、`app/static/dashboard.{html,css,js}`（新增公司表單改為代碼/名稱擇一輸入之搜尋建議） | `tests/test_api_companies.py`（新增 3 項）、`tests/test_mops_client.py`（新增 4 項）、`tests/test_cik_lookup.py`（新增 4 項） | 隨 app 容器一併部署（無獨立服務） | 補於本文件下方「REQ_012 補充說明」 | `[已驗證]` |
 | REQ_013 | 使用者口述（out-of-band） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(GET /api/v1/admin/jobs、GET /admin) | `app/db_models.py`(`JobRun`)、`app/jobs.py`(`track_job`)、`app/routers/admin.py`(`GET /jobs` 擴充、`trigger_ingest` 帶 `trigger_mode`)、`app/static/admin.{html,js}`（新頁面）、`app/main.py`(`GET /admin` 路由、`job_functions` 全數包上 `track_job`) | `tests/test_jobs.py`（新增 4 項）、`tests/test_admin_jobs.py`（3 項）、`tests/test_admin_page.py`（3 項） | 隨 app 容器一併部署（無獨立服務）；`job_runs` 為新資料表，`init_db()` 之 `Base.metadata.create_all` 於下次啟動時自動建立，無需手動 migration（與 HF-004 之 ALTER TABLE 情境不同） | 補於本文件下方「REQ_013 補充說明」 | `[已驗證]` |
 | REQ_014 | 使用者口述（out-of-band，REQ_013 之延伸） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md` | `api_spec.md`(/api/v1/auth/*)、`threat_model.md` §三之二 | `app/auth.py`(`hash_password`/`verify_password`/`require_admin_access`/`require_session_login`)、`app/routers/auth.py`（新檔）、`app/db_models.py`(`AdminUser`)、`app/main.py`(`SessionMiddleware`)、`app/static/admin.{html,js}`（登入卡片、變更密碼 modal） | `tests/test_api_auth.py`（10 項）、`tests/test_admin_jobs.py`（新增 3 項） | 隨 app 容器一併部署；`admin_users` 為新資料表，`init_db()` 自動建立，無需手動 migration | 補於本文件下方「REQ_014 補充說明」 | `[已驗證]` |
+| REQ_015 | 使用者口述（out-of-band，REQ_014 之延伸） | 補於本文件、`01_planning_and_analysis/reg/requirement_tracker.md`、`security_requirements.md` §五之三（風險接受） | `api_spec.md`(一、認證與授權 REQ_015 註記)、`threat_model.md` §三之三 | `app/auth.py`(`optional_read_access`/`OptionalReadAccessContext`)、`app/routers/companies.py`、`app/routers/predictions.py`、`app/static/dashboard.{html,js}`（移除 API Key 輸入框，改登入/登出按鈕）、`app/static/admin.js`(`safeNextPath`，`?next=` 安全導回)、`app/db_session.py`(`pool_pre_ping`，順手修復 Supabase 閒置斷線) | `tests/test_auth.py`（改寫 2 項）、`tests/test_api_companies.py`（改寫 1 項、新增 2 項）、`tests/test_api_predictions.py`（新增 1 項） | 隨 app 容器一併部署（無獨立服務） | 補於本文件下方「REQ_015 補充說明」 | `[已驗證]` |
 
 > 說明：`[不連貫警告]` 為框架標準狀態標記，表示該需求尚未貫穿所有階段。Phase 06（維護與營運）已於 2026-07-15 完成第一輪，REQ_001/002/003/007/SEC_001/010 已因本輪真實資料擷取與熱修補而更新為 `[已驗證]`；REQ_004/005/006/009 仍標記 `[不連貫警告]`，原因是模型預測/回測尚未對真實資料執行（非監控或測試機制缺陷，見 `06_maintenance/outputs/monitoring_dashboard.md`）。REQ_008 已因 REQ_011（同日 out-of-band 追加）補齊 3 個資料擷取任務的真實邏輯而更新為 `[已驗證]`，模型類任務的限制併入 REQ_004/005/006 之既有已知限制範圍，不再視為 REQ_008 本身之缺口。
 >
@@ -133,6 +134,34 @@
 - **驗證方式**：新增 13 項自動化測試（密碼雜湊 round-trip、登入成功/失敗/帳號不存在同訊息、
   `/me`、登出、變更密碼成功/失敗、session 不帶 API Key 也能存取排程端點、兩者皆無時拒絕），既有
   106 項測試無回歸；已對真實 Supabase 建立首筆帳號並實測登入/查詢/觸發/登出完整流程。
+
+## REQ_015 補充說明：/dashboard 查詢公開化 + 移除 API Key 輸入（REQ_014 之延伸）
+
+> 使用者要求 `/dashboard` 新增登入按鈕導向登入頁，並移除 API Key 輸入框。第一版實作將查詢類端點
+> 全數改為需登入 session（沿用 REQ_014 之 `/admin` 帳密登入），經使用者實測後反饋「不需要登入也能
+> 查看」，故調整為：**查詢/瀏覽公開、新增公司（寫入）仍需登入**。此為本專案至今唯一一次主動放寬
+> （而非延伸強化）既有安全需求的決定，過程與理由完整記錄於 `security_requirements.md` §五之三、
+> `threat_model.md` §三之三，比照 REQ_010~014 先例，未走完整 Phase 02→03 PDCA 順序、未建立獨立
+> Baseline。
+
+- **API 層**：新增 `app/auth.py::optional_read_access`，查詢類端點（公司清單/搜尋/財務/股價/預測/
+  回測）不再要求任何憑證；若仍附帶 session 或 X-API-Key 則正常辨識並記錄稽核日誌之 `auth_method`
+  （`session`/`apikey`/`anonymous`），主動附上但無效的 API Key 仍視為錯誤（401），不會被靜默當成
+  匿名請求。`POST /api/v1/companies`（新增公司）與 `/api/v1/admin/*` 不受影響，維持原本
+  `require_admin_access` 保護。
+- **前端**：`dashboard.html`/`dashboard.js` 移除 API Key 輸入框與「連線」按鈕，改為「登入」/「登出」
+  按鈕；頁面載入時一律嘗試載入公司資料（不再等待登入），登入狀態僅用於解鎖「新增公司」表單與顯示
+  已登入帳號。「登入」按鈕導向 `/admin?next=/dashboard`，`admin.js` 新增 `safeNextPath()` 驗證
+  `next` 僅接受站內相對路徑（防開放式導向），登入成功後自動導回。
+- **順手修復一個既有缺陷**：實測時發現伺服器閒置一段時間後，第一個打向 Supabase 的請求會因連線池
+  已關閉閒置連線而回 500（`psycopg.OperationalError: server closed the connection unexpectedly`）；
+  `app/db_session.py::make_engine()` 原未開啟 `pool_pre_ping`，已修復。與本次功能異動關係不大，但為
+  完整端到端驗證過程中發現的真實缺陷，一併記錄。
+- **驗證方式**：修改/新增 4 項自動化測試（`test_auth.py` 2 項、`test_api_companies.py` 2 項、
+  `test_api_predictions.py` 1 項，另有 1 項既有測試因行為改變而重寫斷言），既有 110 項測試無回歸，
+  合計 114 項全數通過。另以全新（無 cookie/無 localStorage）headless Chrome 設定檔實測：未登入時
+  `/dashboard` 正確顯示真實公司資料（台積電/Apple/SPCX），右上角正確顯示「登入」按鈕；匿名嘗試
+  `POST /api/v1/companies` 正確回 401。
 
 ## 框架瑕疵回饋（詳見根目錄 `待辦事項.md`）
 

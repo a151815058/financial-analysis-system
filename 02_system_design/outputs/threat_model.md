@@ -52,6 +52,21 @@
 | **T**ampering | 密碼於傳輸/儲存過程外洩 | 帳號被冒用 | 密碼雜湊（bcrypt，含 salt）儲存，明文不落地；傳輸仰賴既有 HTTPS 要求（見四、階段性限制說明） | 構面 6、7 |
 | **E**levation of Privilege | 一般 read scope API Key 誤用於呼叫 `/api/v1/admin/*` | 未授權觸發排程 | `require_admin_access` 仍檢查 API Key 之 admin scope（未通過回 403），與 session 登入並存但不互相降低門檻 | 構面 1、4 |
 
+## 三之三、REQ_015 查詢端點公開化威脅分析（out-of-band，2026-07-15 追加）
+
+> 使用者要求 `/dashboard` 資料不需登入即可查看，將查詢類端點（`GET /api/v1/companies*`，含
+> `search`/`financials`/`prices`/`predictions/*`/`backtest`）之存取控制**主動放寬為匿名可存取**，
+> 直接影響上方「二、STRIDE 威脅分析」之 Information Disclosure 與 Elevation of Privilege 兩列原始
+> 對應措施（原設計為「查詢僅回傳授權範圍內資料」，本質是以 API Key 圈定授權範圍；放寬後不再有
+> 「授權範圍」這個概念，等同全域公開）。
+
+| 類別 | 威脅情境 | 影響 | 對應措施／風險接受理由 | 構面 |
+| :--- | :--- | :--- | :--- | :--- |
+| **I**nformation Disclosure | 任何第三方無需憑證即可批量查詢公司財務指標、股價、預測與回測結果 | 財務分析與衍生預測結果全域公開，喪失原始 REQ_SEC_001 構面 1（存取控制）之保護 | **風險接受，非緩解**：底層資料（財報、股價）本身即取自 MOPS/SEC EDGAR 等公開來源，`security_requirements.md`「一、CIA 等級定義」原即註記機密性為「中」；預測/回測為衍生分析結果，非個資、非交易憑證，使用者評估後接受公開揭露風險。**未緩解之殘留風險**：批量爬取造成之伺服器負載、預測方法論間接被推斷 | 構面 1（風險接受） |
+| **D**enial of Service（風險放大） | 移除認證後，惡意批量爬取查詢端點的門檻降低（原本至少需一把有效 API Key） | 查詢端點更容易被高頻率打擊 | **已知限制**：目前未針對匿名請求另加 Rate Limiting，與既有「二、STRIDE」表列之 DoS 對應措施（依 API Key 限流）出現落差，因為匿名請求無金鑰可供限流依據；待後續視實際流量決定是否改以來源 IP 限流 | 構面 6（已知限制，未緩解） |
+| **E**levation of Privilege（範圍限縮） | 寫入端點 `POST /api/v1/companies` 與 `/api/v1/admin/*` 若比照查詢端點一併放寬 | 任何人可竄改追蹤清單/觸發排程 | **刻意排除於本次放寬範圍外**：`require_admin_access` 仍強制要求登入 session 或 admin scope API Key，401/403 語意不變；本次僅放寬查詢（唯讀）路徑 | 構面 1、4（維持既有防護） |
+| **R**epudiation（可歸責性保留） | 放寬存取控制後，稽核日誌是否仍能還原「誰查詢了什麼」 | 若完全不記錄，事後無法追查異常爬取來源 | 保留：`audit_logs` 仍記錄每次查詢，新增 `auth_method`（`session`/`apikey`/`anonymous`）欄位區分請求類型；匿名請求記錄 `source_ip` 但無法歸責至特定帳號/金鑰，此為刻意放寬存取控制之必然結果 | 構面 2 |
+
 ## 四、階段性限制說明
 
 - 本機開發環境暫未配置正式 TLS 憑證，構面 6 之 HTTPS 要求於 Phase 05 部署至正式環境後方能完整驗證，屬**階段性限制**，非設計缺陷。

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import record as record_audit
-from app.auth import AuthContext, require_admin_scope, require_api_key
+from app.auth import AdminAccessContext, OptionalReadAccessContext, optional_read_access, require_admin_access
 from app.db_models import Company, FinancialReport, PriceHistory
 from app.db_session import get_session
 from app.ingestion.mops_client import search_companies as search_tw_companies
@@ -41,7 +41,7 @@ def create_company(
     payload: CompanyCreateRequest,
     request: Request,
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_admin_scope),
+    auth: AdminAccessContext = Depends(require_admin_access),
 ) -> Company:
     """新增追蹤公司（REQ_011）。美股未提供 cik 時自動以 SEC ticker→CIK 對照表查詢。"""
     existing = session.execute(
@@ -80,7 +80,7 @@ def create_company(
         resource=f"{payload.market}:{payload.ticker}",
         result="SUCCESS",
         source_ip=_client_ip(request),
-        detail={"ticker": payload.ticker, "market": payload.market, "cik": cik},
+        detail={"ticker": payload.ticker, "market": payload.market, "cik": cik, "auth_method": auth.method},
     )
     return company
 
@@ -89,7 +89,7 @@ def create_company(
 def search_companies(
     market: str = Query(pattern="^(TW|US)$"),
     q: str = Query(min_length=1, max_length=100),
-    auth: AuthContext = Depends(require_api_key),
+    auth: OptionalReadAccessContext = Depends(optional_read_access),
 ) -> list[dict]:
     """REQ_012：依代碼或名稱模糊查詢，供新增公司 UI 之搜尋建議使用（不需 admin scope，僅查詢無副作用）。"""
     if market == "TW":
@@ -103,7 +103,7 @@ def list_companies(
     market: str | None = Query(default=None, pattern="^(TW|US)$"),
     industry: str | None = Query(default=None),
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_api_key),
+    auth: OptionalReadAccessContext = Depends(optional_read_access),
 ) -> list[Company]:
     stmt = select(Company)
     if market:
@@ -117,6 +117,7 @@ def list_companies(
         action="companies.list",
         result="SUCCESS",
         source_ip=_client_ip(request),
+        detail={"auth_method": auth.method},
     )
     return list(companies)
 
@@ -128,7 +129,7 @@ def get_financials(
     market: str = Query(pattern="^(TW|US)$"),
     quarters: int = Query(default=8, ge=1, le=40),
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_api_key),
+    auth: OptionalReadAccessContext = Depends(optional_read_access),
 ) -> FinancialsResponse:
     company = _get_company_or_404(session, ticker, market)
     reports = (
@@ -151,6 +152,7 @@ def get_financials(
         resource=f"{market}:{ticker}",
         result="SUCCESS",
         source_ip=_client_ip(request),
+        detail={"auth_method": auth.method},
     )
     return FinancialsResponse(ticker=ticker, market=market, reports=list(reports))
 
@@ -163,7 +165,7 @@ def get_prices(
     date_from: dt.date | None = Query(default=None, alias="from"),
     date_to: dt.date | None = Query(default=None, alias="to"),
     session: Session = Depends(get_session),
-    auth: AuthContext = Depends(require_api_key),
+    auth: OptionalReadAccessContext = Depends(optional_read_access),
 ) -> PricesResponse:
     company = _get_company_or_404(session, ticker, market)
     date_to = date_to or dt.date.today()
@@ -190,5 +192,6 @@ def get_prices(
         resource=f"{market}:{ticker}",
         result="SUCCESS",
         source_ip=_client_ip(request),
+        detail={"auth_method": auth.method},
     )
     return PricesResponse(ticker=ticker, market=market, prices=list(prices))

@@ -49,6 +49,16 @@ def test_get_latest_prediction_returns_submodel_detail(client, read_api_key, db_
     assert body["sub_models"]["timeseries_model"]["range_pct"] == [2.5, 6.0]
 
 
+def test_get_latest_prediction_accepts_session_login_without_api_key(client, admin_user, db_session):
+    """REQ_015：/dashboard 改用登入 session，預測端點需同時接受 session 與既有 API Key。"""
+    _seed_company_with_prediction(db_session)
+    username, password = admin_user
+    client.post("/api/v1/auth/login", json={"username": username, "password": password})
+
+    response = client.get("/api/v1/companies/2330/predictions/latest", params={"market": "TW"})
+    assert response.status_code == 200
+
+
 def test_get_latest_prediction_404_when_none_exists(client, read_api_key, db_session):
     db_session.add(Company(ticker="2317", market="TW", name="鴻海", currency="TWD"))
     db_session.commit()

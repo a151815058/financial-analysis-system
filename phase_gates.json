@@ -92,6 +92,14 @@
       "note": "使用者要求把 /admin 頁面從貼 API Key 改成帳號密碼登入（或 Google 帳號，選了帳號密碼）。新增 admin_users 資料表 + bcrypt 密碼雜湊 + Starlette SessionMiddleware；/api/v1/admin/* 改為 session 或 admin scope API Key 擇一驗證，既有程式化呼叫端相容。/dashboard 與其餘 REST API 不受影響。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
       "tests_added": 13,
       "total_tests": 110
+    },
+    {
+      "id": "REQ_015",
+      "name": "/dashboard 移除 API Key 輸入、查詢端點改為公開瀏覽，新增公司仍需登入",
+      "added_at": "2026-07-16T00:00:00",
+      "note": "使用者要求 /dashboard 新增登入按鈕並移除 API Key 輸入。第一版改為查詢端點皆需登入 session，經使用者實測反饋後調整為「查詢公開、新增公司（寫入）仍需登入」，為本專案至今唯一一次主動放寬既有安全需求（構面 1 存取控制）之決定，風險接受理由見 security_requirements.md §五之三、threat_model.md §三之三。順手修復 db_session.py 缺少 pool_pre_ping 導致 Supabase 閒置斷線後 500 的既有缺陷。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
+      "tests_added": 4,
+      "total_tests": 114
     }
   ],
   "phase_baseline_enabled": true,

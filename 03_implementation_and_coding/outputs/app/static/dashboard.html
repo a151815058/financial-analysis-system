@@ -12,17 +12,18 @@
 <div class="topbar">
   <h1>各公司各季度財務分析與股價預測系統</h1>
   <span class="disclaimer">僅供分析參考，不構成投資建議</span>
-  <div class="apikey-form">
+  <div class="apikey-form" id="auth-bar">
     <span class="status-dot" id="status-dot"></span>
-    <input type="password" id="api-key-input" placeholder="X-API-Key" autocomplete="off">
-    <button id="save-key-btn" class="primary">連線</button>
+    <span id="auth-username" hidden></span>
+    <button id="login-btn" class="primary">登入</button>
+    <button id="logout-btn" hidden>登出</button>
   </div>
 </div>
 
 <div class="filters">
   <label for="company-select">公司</label>
   <select id="company-select">
-    <option value="">— 請先設定 API Key —</option>
+    <option value="">— 載入中 —</option>
   </select>
   <label for="market-select" style="margin-left:8px;">市場</label>
   <select id="market-select">
@@ -72,7 +73,7 @@
 </div>
 
 <main id="main-content">
-  <div class="empty-state" id="global-empty">請先於右上角輸入有效的 API Key 並選擇公司。</div>
+  <div class="empty-state" id="global-empty">載入中…</div>
 </main>
 
 <footer>各公司各季度財務分析與股價預測系統 · 內部分析儀表板</footer>
