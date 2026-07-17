@@ -149,6 +149,39 @@
 - 下一步：待使用者決定 commit/推送後續動作；`system_specification.md` 版本歷程表比照 REQ_011~014
   先例暫不逐筆更新（僅 REQ_010 因屬較大幅 UI 追加而有獨立附錄）。
 
+### 2026-07-17 — Session 2（續）：REQ_016 weekly_predict 排程真實邏輯
+
+- 使用者詢問「每週預測這個排程，是有實作出來的嗎」，檢查 `app/main.py` 確認 `weekly_predict` 仍是
+  `_stub_job`（只記 log，不做事），如實回報後使用者要求實作。
+- 動手前檢查真實資料量，發現財報因子模型（`factor_model.py`）統計設計要求至少 10 筆訓練樣本，但
+  Supabase 目前台積電僅 1 筆財報、Apple 僅 2 筆（其餘 0 筆），加總只有 3 筆，離門檻很遠——財報一季
+  才更新一次，這是資料尚未累積夠，不是實作問題。時間序列模型則沒問題（2330 有 51 筆、AAPL 有 100
+  筆股價，遠超過 30 天門檻）。
+- 詢問使用者資料不足時該怎麼處理，使用者選擇「先用時間序列模型單獨出預測（推薦），待財報樣本累積
+  足夠後自動切換為真正的雙模型融合」，而非嚴格照 REQ_006 設計「資料不夠就不出預測」。
+- 新增 `app/prediction/features.py`：由財報歷史算出 REQ_004 要求的 7 項衍生特徵（YoY/QoQ），並比對
+  股價算出訓練標籤。訓練樣本改採跨公司彙總（cross-sectional）而非每家公司各自訓練，讓 10 筆門檻更
+  快達成，統計上也更合理。
+- `app/jobs.py::run_weekly_predict`：每次執行即時重新訓練財報因子模型（不做獨立模型持久化/版本
+  管理，屬已知簡化，見 traceability_matrix.md REQ_016 補充說明）；財報因子模型不可訓練或推論特徵
+  不可得時，優雅降級為僅時間序列模型出預測，`model_version` 加註 `-ts-only`，不偽裝成雙模型融合。
+- 過程中發現並修復一個 SQLAlchemy 陷阱：`_replace_prediction_for_week()` 同一次 flush 內先
+  `delete()` 舊預測再 `add()` 新預測（同一組唯一鍵），預設會先送 INSERT 才送 DELETE，導致資料庫端
+  誤觸唯一鍵衝突；加上顯式 `session.flush()` 修復。
+- 新增 16 項自動化測試（`test_prediction_features.py` 10 項、`test_jobs.py` 新增 6 項），既有 114
+  項無回歸，合計 130 項全數通過；`ruff`/`bandit` 皆乾淨。
+- **真實環境端到端驗證**：重啟本機伺服器（無 `--reload`，見上次 session 教訓），登入後透過 `/admin`
+  手動觸發 `weekly_predict`，對台積電(2330)/Apple(AAPL) 真實資料成功產生 `v1.0.0-ts-only` 預測並寫
+  入 Supabase（SPCX 因無股價資料正確略過）。同時發現 dashboard KPI 卡片原本寫死「融合模型
+  （factor+timeseries）」字樣，在降級模式下會誤導使用者，已改為依 `sub_models.factor_model` 是否
+  存在動態顯示正確標籤，並以 Chrome headless 重新截圖確認畫面正確。
+- 全域 Agent 已同步：`traceability_matrix.md`（新增 REQ_016、更新 REQ_004/005/006/008 狀態）、
+  `requirement_tracker.md`、`phase_gates.json`（`out_of_band_additions` 新增 REQ_016）。未走完整
+  Phase 02→03 PDCA 順序，未建立獨立 Baseline，比照 REQ_010~015 先例。
+- 下一步：`model_retrain`/`weekly_backtest` 兩個排程任務仍為 stub；財報歷史會隨 `mops_ingest`/
+  `sec_edgar_ingest` 每週排程持續累積，待跨公司彙總樣本數達 10 筆門檻後，`weekly_predict` 會在下次
+  執行時自動切換為真正的雙模型融合，不需要再次人工介入。
+
 ## 關鍵決策記錄
 
 | 時間 | 決策 | 理由 |
@@ -172,18 +205,23 @@
 | 2026-07-16 | `/dashboard` 查詢類端點主動放寬為公開瀏覽（不需登入/API Key），新增公司仍需登入 | 使用者明確要求查看資料不需登入；底層財報/股價本身取自公開來源（MOPS/SEC EDGAR），機密性評級本為「中」；寫入操作（新增公司）保留原有存取控制，僅查詢路徑放寬 |
 | 2026-07-16 | `db_session.py` 加上 `pool_pre_ping=True` | 實測發現伺服器閒置後第一個請求因 Supabase 連線池關閉閒置連線而 500；非本次功能範圍但為真實發現之缺陷，一併修復 |
 | 2026-07-16 | 本機開發伺服器改手動重啟，不依賴 `uvicorn --reload` | 實測發現 `--reload` 在本機環境會漏檢測變更，導致驗證到舊程式碼；手動重啟雖較慢但能確保驗證結果可信 |
+| 2026-07-17 | `weekly_predict` 財報因子模型資料不足時優雅降級為僅時間序列模型，不因資料不足而完全不出預測 | 財報樣本量遠低於訓練門檻（3 筆 < 10 筆），若嚴格照 REQ_006 原始設計「兩模型都訓練成功才出預測」，dashboard 短期內（可能數月甚至以年計）都不會有任何預測；使用者確認後選擇先用可行的子模型出預測，並清楚標記非完整融合結果，待資料累積足夠後自動升級 |
+| 2026-07-17 | 財報因子模型訓練樣本改採跨公司彙總（cross-sectional），不要求每家公司各自訓練 | 單一公司要湊到 10 筆訓練樣本需 2.5 年以上歷史；彙總全部追蹤公司的財報一起訓練，能更快達成統計上可訓練的樣本數，長期而言也更符合分位數迴歸對更大樣本數的統計假設 |
 
 ## 當前狀態
 
-- 目前階段：Phase 06（維護與營運）第一輪已完成（2026-07-15），之後陸續有 5 項範疇外追加
-  （REQ_010~015，皆未走完整 Phase 02→03 PDCA、未建立獨立 Baseline，追溯記錄於 `traceability_matrix.md`
-  與本檔案）。REQ_014、REQ_015 已於 2026-07-16 完成並記錄（REQ_015 尚待補 commit）。
-- 累計自動化測試：114 項全數通過。
+- 目前階段：Phase 06（維護與營運）第一輪已完成（2026-07-15），之後陸續有 6 項範疇外追加
+  （REQ_010~016，皆未走完整 Phase 02→03 PDCA、未建立獨立 Baseline，追溯記錄於 `traceability_matrix.md`
+  與本檔案）。REQ_014~016 已於 2026-07-16~17 完成並記錄。
+- 累計自動化測試：130 項全數通過。
+- `weekly_predict` 排程已接上真實邏輯（REQ_016），目前因財報樣本不足走「僅時間序列模型」降級路徑；
+  `model_retrain`/`weekly_backtest` 兩個排程任務仍為 stub。
 - 下一步：
   1. 待使用者決定是否/何時繼續 Phase 06 第二輪（尚未規劃）。
   2. 待取得可實際操作的 Docker 環境後，回頭執行 `05_deployment/outputs/security_deployment_checklist.md`
      待辦清單（TLS 憑證、備份排程、`docker compose up` 實際驗證）——目前正式資料庫已改用 Render +
      Supabase 部署路徑（見 `render.yaml`），容器編排/反向代理部分仍待驗證。
+  3. `weekly_backtest`（回測排程）與 `model_retrain`（模型持久化/版本管理）仍為 stub，尚未實作。
   3. `weekly_predict`/`model_retrain`/`weekly_backtest` 三個模型類排程任務仍為 stub，尚未接上真實邏輯。
 
 ## Git 版本歷程

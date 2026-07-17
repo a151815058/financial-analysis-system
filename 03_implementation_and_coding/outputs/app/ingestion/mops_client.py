@@ -62,8 +62,7 @@ def fetch_quarterly_financials(ticker: str, fiscal_year: int, fiscal_quarter: in
     income_row = _find_by_code(income_rows, ticker, "公司代號")
     if income_row is None:
         raise ExternalSourceError(
-            f"TWSE 綜合損益表查無公司代號 {ticker}（可能為上櫃/興櫃或非一般業別，"
-            "本端點僅涵蓋上市一般業）"
+            f"TWSE 綜合損益表查無公司代號 {ticker}（可能為上櫃/興櫃或非一般業別，本端點僅涵蓋上市一般業）"
         )
     if income_row.get("年度") != roc_year or income_row.get("季別") != str(fiscal_quarter):
         actual_period = f"{income_row.get('年度')}Q{income_row.get('季別')}"

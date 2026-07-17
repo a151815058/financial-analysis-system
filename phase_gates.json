@@ -100,6 +100,14 @@
       "note": "使用者要求 /dashboard 新增登入按鈕並移除 API Key 輸入。第一版改為查詢端點皆需登入 session，經使用者實測反饋後調整為「查詢公開、新增公司（寫入）仍需登入」，為本專案至今唯一一次主動放寬既有安全需求（構面 1 存取控制）之決定，風險接受理由見 security_requirements.md §五之三、threat_model.md §三之三。順手修復 db_session.py 缺少 pool_pre_ping 導致 Supabase 閒置斷線後 500 的既有缺陷。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
       "tests_added": 4,
       "total_tests": 114
+    },
+    {
+      "id": "REQ_016",
+      "name": "weekly_predict 排程接上真實邏輯（補完 REQ_004/005/006 之模型斷鏈）",
+      "added_at": "2026-07-17T00:00:00",
+      "note": "使用者詢問 weekly_predict 是否已實作，確認仍為 stub 後要求補上。新增財報 YoY/QoQ 特徵工程模組（app/prediction/features.py），財報因子模型改採跨公司彙總訓練以更快達成 10 筆訓練樣本門檻。發現真實資料量嚴重不足（財報僅 1~2 筆/公司，遠低於門檻），詢問使用者後決定：資料不足時優雅降級為僅時間序列模型出預測（model_version 加註 -ts-only，不偽裝成雙模型融合），待財報歷史累積足夠後自動切換為真正融合。已對真實 Supabase 資料端到端驗證成功（台積電/Apple 產出真實預測）。未走完整 Phase 02→03 PDCA 順序，未建立獨立 Baseline。",
+      "tests_added": 16,
+      "total_tests": 130
     }
   ],
   "phase_baseline_enabled": true,

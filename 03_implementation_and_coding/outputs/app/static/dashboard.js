@@ -189,6 +189,10 @@ function renderKPIs(prediction) {
     return;
   }
   const dirClass = prediction.direction === "UP" ? "up" : prediction.direction === "DOWN" ? "down" : "flat";
+  // 財報因子模型資料不足時會優雅降級為僅時間序列模型（model_version 以 -ts-only 結尾），
+  // 標籤需誠實反映實際用了幾個子模型，不能不分青紅皂白都寫「融合模型」。
+  const isFusion = prediction.sub_models?.factor_model?.direction != null;
+  const rangeSubLabel = isFusion ? "融合模型（factor+timeseries）" : "僅時間序列模型（財報因子模型資料不足）";
   row.innerHTML = `
     <div class="stat-tile">
       <div class="label">最新一週預測方向</div>
@@ -198,7 +202,7 @@ function renderKPIs(prediction) {
     <div class="stat-tile">
       <div class="label">預測幅度區間</div>
       <div class="value">${prediction.range_lower_pct}<span class="unit">%</span> ~ ${prediction.range_upper_pct}<span class="unit">%</span></div>
-      <div class="sub">融合模型（factor+timeseries）</div>
+      <div class="sub">${rangeSubLabel}</div>
     </div>
     <div class="stat-tile">
       <div class="label">信心分數</div>

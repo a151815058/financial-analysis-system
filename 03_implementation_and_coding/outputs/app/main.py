@@ -13,7 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.db_session import init_db
-from app.jobs import run_mops_ingest, run_price_ingest, run_sec_edgar_ingest, track_job
+from app.jobs import run_mops_ingest, run_price_ingest, run_sec_edgar_ingest, run_weekly_predict, track_job
 from app.routers import admin, auth, companies, predictions
 from app.scheduler import build_scheduler
 
@@ -42,8 +42,9 @@ async def lifespan(_: FastAPI):
         "mops_ingest": track_job("mops_ingest", run_mops_ingest),
         "sec_edgar_ingest": track_job("sec_edgar_ingest", run_sec_edgar_ingest),
         "price_ingest": track_job("price_ingest", run_price_ingest),
-        # 模型類任務仍待與預測/回測管線整合，維持佔位函式（不在 REQ_011 範圍）
-        "weekly_predict": track_job("weekly_predict", _stub_job("weekly_predict")),
+        # REQ_004/005/006：財報因子模型 + 時間序列模型 -> 每週預測（見 app/jobs.py 模組說明之已知簡化）
+        "weekly_predict": track_job("weekly_predict", run_weekly_predict),
+        # model_retrain/weekly_backtest 仍待實作，維持佔位函式
         "model_retrain": track_job("model_retrain", _stub_job("model_retrain")),
         "weekly_backtest": track_job("weekly_backtest", _stub_job("weekly_backtest")),
     }

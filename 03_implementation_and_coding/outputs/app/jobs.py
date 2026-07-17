@@ -1,7 +1,9 @@
-"""排程任務之真實擷取邏輯（REQ_008/REQ_011）。取代 app/main.py 原本只記 log 的佔位函式。
+"""排程任務之真實擷取/預測邏輯（REQ_008/REQ_011/REQ_004~006）。取代 app/main.py 原本只記 log
+的佔位函式。
 
-僅涵蓋 3 個資料擷取任務（mops_ingest/sec_edgar_ingest/price_ingest）；weekly_predict/
-model_retrain/weekly_backtest 三個模型類任務仍維持 app/main.py 之 stub，不在本次範圍。
+涵蓋 4 個任務：3 個資料擷取（mops_ingest/sec_edgar_ingest/price_ingest）+ 1 個預測
+（weekly_predict，本次新增）。model_retrain/weekly_backtest 兩個任務仍維持 app/main.py 之
+stub，不在本次範圍——見 run_weekly_predict() 模組說明之「已知簡化」。
 """
 
 from __future__ import annotations
@@ -10,14 +12,21 @@ import datetime as dt
 import logging
 from collections.abc import Callable
 
+import pandas as pd
 from sqlalchemy import select
 
-from app.db_models import Company, JobRun
+from app.db_models import Company, JobRun, Prediction, PriceHistory
 from app.db_session import SessionLocal
 from app.ingestion import alpha_vantage_client, mops_client, sec_edgar_client, twse_price_client
 from app.ingestion.normalizer import upsert_financial_report, upsert_price_point
+from app.prediction import ensemble
+from app.prediction import features as prediction_features
+from app.prediction.factor_model import FactorModel
+from app.prediction.timeseries_model import TimeSeriesModel
 
 logger = logging.getLogger(__name__)
+
+MODEL_VERSION = "v1.0.0"
 
 
 def _record_job_run(
@@ -85,9 +94,7 @@ def _last_completed_fiscal_quarter(today: dt.date) -> tuple[int, int]:
 def run_mops_ingest() -> None:
     session = SessionLocal()
     try:
-        tickers = list(
-            session.execute(select(Company.ticker).where(Company.market == "TW")).scalars().all()
-        )
+        tickers = list(session.execute(select(Company.ticker).where(Company.market == "TW")).scalars().all())
         if not tickers:
             logger.info("mops_ingest：無台股追蹤公司，略過")
             return
@@ -208,5 +215,165 @@ def run_price_ingest() -> None:
                 logger.warning("price_ingest（US）：%d 檔擷取失敗：%s", len(us_failed), us_failed)
 
         session.commit()
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# weekly_predict（REQ_004/005/006）：財報因子模型 + 時間序列模型 -> 每週預測
+# ---------------------------------------------------------------------------
+#
+# 已知簡化：REQ_004 驗收條件提到模型應「版本化模型檔案」，理想設計是 model_retrain（週日
+# 22:00）負責訓練並持久化模型、weekly_predict（週一 01:00）僅載入既有模型做推論。本次僅
+# 實作 weekly_predict，尚未實作獨立的模型持久化/版本管理，故採簡化設計：每次執行皆即時
+# 重新訓練財報因子模型（不快取），推論與訓練合一。以目前資料量（每次訓練僅需毫秒等級）
+# 這不構成效能問題；若日後資料量成長或需要真正的模型版本控管，才需要另外實作
+# model_retrain 將訓練與推論拆開。
+
+
+def _this_week_monday(today: dt.date) -> dt.date:
+    return today - dt.timedelta(days=today.weekday())
+
+
+def _train_pooled_factor_model(session, companies: list[Company]) -> FactorModel | None:
+    """跨公司彙總訓練財報因子模型；歷史樣本不足 10 筆（FactorModel 之統計穩定性門檻）時回傳 None。"""
+    features_df, labels = prediction_features.build_training_dataset(session, companies)
+    if features_df.empty:
+        logger.info("weekly_predict：目前累積之財報歷史尚無法算出任何訓練樣本，財報因子模型略過")
+        return None
+    try:
+        return FactorModel().fit(features_df, labels)
+    except ValueError as exc:
+        logger.info("weekly_predict：財報因子模型訓練樣本不足（%d 筆），略過：%s", len(features_df), exc)
+        return None
+
+
+def _predict_company_timeseries(session, company: Company):
+    rows = session.execute(
+        select(PriceHistory.trade_date, PriceHistory.close_price)
+        .where(PriceHistory.company_id == company.company_id)
+        .order_by(PriceHistory.trade_date.asc())
+    ).all()
+    if not rows:
+        return None
+
+    series = pd.Series([float(r[1]) for r in rows], index=pd.DatetimeIndex([r[0] for r in rows]))
+    try:
+        model = TimeSeriesModel().fit(series)
+    except ValueError:
+        return None
+    return model.predict_next_week()
+
+
+def _replace_prediction_for_week(
+    session, company: Company, base_week_start: dt.date, factor_result, ts_result
+) -> None:
+    """刪除該公司當週既有預測（若有，如手動重觸發）後寫入最新一筆，維持「每公司每週一筆」語意。"""
+    existing = (
+        session.execute(
+            select(Prediction).where(
+                Prediction.company_id == company.company_id,
+                Prediction.base_week_start_date == base_week_start,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for row in existing:
+        session.delete(row)
+    if existing:
+        # 沒有這行，SQLAlchemy flush 預設先送出 INSERT 再送 DELETE，會在資料庫端誤觸
+        # (company_id, base_week_start_date, model_version) 唯一鍵衝突；顯式 flush
+        # 讓刪除先落地，避免重觸發（如 /admin 手動重跑）時炸掉。
+        session.flush()
+
+    if factor_result is not None:
+        combined = ensemble.combine(factor_result, ts_result)
+        session.add(
+            Prediction(
+                company_id=company.company_id,
+                base_week_start_date=base_week_start,
+                direction=combined.direction,
+                range_lower_pct=combined.range_lower_pct,
+                range_upper_pct=combined.range_upper_pct,
+                confidence_score=combined.confidence_score,
+                factor_model_direction=combined.factor_model.direction,
+                factor_model_range_lower_pct=combined.factor_model.range_lower_pct,
+                factor_model_range_upper_pct=combined.factor_model.range_upper_pct,
+                timeseries_model_direction=combined.timeseries_model.direction,
+                timeseries_model_range_lower_pct=combined.timeseries_model.range_lower_pct,
+                timeseries_model_range_upper_pct=combined.timeseries_model.range_upper_pct,
+                ensemble_weight_factor=combined.weight_factor,
+                ensemble_weight_timeseries=combined.weight_timeseries,
+                model_version=MODEL_VERSION,
+            )
+        )
+        return
+
+    # 財報因子模型資料不足時的優雅降級（使用者確認採用）：僅用時間序列模型出預測，
+    # factor_model_* 留空、ensemble_weight_factor=0，並於 model_version 加註 -ts-only，
+    # 以利前端/稽核區分「真正雙模型融合」與「暫時單模型」兩種預測，不偽裝成完整 REQ_006 融合結果。
+    session.add(
+        Prediction(
+            company_id=company.company_id,
+            base_week_start_date=base_week_start,
+            direction=ts_result.direction,
+            range_lower_pct=ts_result.range_lower_pct,
+            range_upper_pct=ts_result.range_upper_pct,
+            confidence_score=ts_result.confidence_score,
+            factor_model_direction=None,
+            factor_model_range_lower_pct=None,
+            factor_model_range_upper_pct=None,
+            timeseries_model_direction=ts_result.direction,
+            timeseries_model_range_lower_pct=ts_result.range_lower_pct,
+            timeseries_model_range_upper_pct=ts_result.range_upper_pct,
+            ensemble_weight_factor=0.0,
+            ensemble_weight_timeseries=1.0,
+            model_version=f"{MODEL_VERSION}-ts-only",
+        )
+    )
+
+
+def run_weekly_predict() -> None:
+    session = SessionLocal()
+    try:
+        companies = session.execute(select(Company)).scalars().all()
+        if not companies:
+            logger.info("weekly_predict：無追蹤公司，略過")
+            return
+
+        factor_model = _train_pooled_factor_model(session, companies)
+        base_week_start = _this_week_monday(dt.date.today())
+
+        produced = 0
+        skipped: list[str] = []
+        for company in companies:
+            label = f"{company.market}:{company.ticker}"
+            try:
+                ts_result = _predict_company_timeseries(session, company)
+                if ts_result is None:
+                    skipped.append(f"{label}（股價資料不足，需至少 30 個交易日）")
+                    continue
+
+                factor_result = None
+                if factor_model is not None:
+                    inference_features = prediction_features.build_inference_features(session, company)
+                    if inference_features is not None:
+                        factor_result = factor_model.predict(inference_features)[0]
+
+                _replace_prediction_for_week(session, company, base_week_start, factor_result, ts_result)
+                produced += 1
+            except Exception as exc:  # noqa: BLE001 - 批次隔離：單一公司預測失敗不應中斷其餘公司
+                logger.exception("weekly_predict：%s 預測失敗", label)
+                skipped.append(f"{label}（{exc}）")
+
+        session.commit()
+        logger.info(
+            "weekly_predict：完成 %d 家公司之預測（財報因子模型%s可用）",
+            produced,
+            "" if factor_model is not None else "不",
+        )
+        if skipped:
+            logger.warning("weekly_predict：%d 家公司略過：%s", len(skipped), skipped)
     finally:
         session.close()

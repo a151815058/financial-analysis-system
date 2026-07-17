@@ -15,7 +15,13 @@ from app.db_session import get_session
 from app.ingestion.mops_client import search_companies as search_tw_companies
 from app.ingestion.sec_edgar_client import lookup_cik
 from app.ingestion.sec_edgar_client import search_companies as search_us_companies
-from app.schemas import CompanyCreateRequest, CompanyOut, CompanySearchResult, FinancialsResponse, PricesResponse
+from app.schemas import (
+    CompanyCreateRequest,
+    CompanyOut,
+    CompanySearchResult,
+    FinancialsResponse,
+    PricesResponse,
+)
 
 CURRENCY_BY_MARKET = {"TW": "TWD", "US": "USD"}
 
