@@ -61,6 +61,7 @@ function setStatus(ok) {
 function showLoggedOut() {
   state.loggedIn = false;
   $("#auth-username").hidden = true;
+  $("#admin-link-btn").hidden = true;
   $("#logout-btn").hidden = true;
   $("#login-btn").hidden = false;
 }
@@ -69,6 +70,7 @@ function showLoggedIn(username) {
   state.loggedIn = true;
   $("#auth-username").textContent = `已登入：${username}`;
   $("#auth-username").hidden = false;
+  $("#admin-link-btn").hidden = false;
   $("#logout-btn").hidden = false;
   $("#login-btn").hidden = true;
 }
@@ -572,6 +574,10 @@ function drawPriceChart(container, points, extraSeries, opts = {}) {
 
 $("#login-btn").addEventListener("click", () => {
   window.location.href = "/admin?next=" + encodeURIComponent(window.location.pathname);
+});
+
+$("#admin-link-btn").addEventListener("click", () => {
+  window.location.href = "/admin";
 });
 
 $("#logout-btn").addEventListener("click", async () => {

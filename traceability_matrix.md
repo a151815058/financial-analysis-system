@@ -163,6 +163,12 @@
   合計 114 項全數通過。另以全新（無 cookie/無 localStorage）headless Chrome 設定檔實測：未登入時
   `/dashboard` 正確顯示真實公司資料（台積電/Apple/SPCX），右上角正確顯示「登入」按鈕；匿名嘗試
   `POST /api/v1/companies` 正確回 401。
+- **後續追加（2026-07-17，REQ_016 之後）**：使用者要求登入後能從 `/dashboard` 導向 `/admin`，
+  提升雙向導覽的使用者體驗（`/admin` 原本就有「回財務儀表板」footer 連結，`/dashboard` 一直缺對應
+  的反向連結）。在登入狀態列新增「後台管理」按鈕（`#admin-link-btn`），僅登入後顯示，點擊導向
+  `/admin`。以 Puppeteer 驅動系統既有 Chrome 實測：未登入時按鈕隱藏、登入後正確顯示且點擊後真的
+  導到 `/admin`。純前端改動，130 項既有測試無回歸（無新增測試，UI 顯示邏輯以瀏覽器實測驗證，比照
+  REQ_010 先例）。
 
 ## REQ_016 補充說明：weekly_predict 排程真實邏輯（補完 REQ_004/005/006 斷鏈）
 
