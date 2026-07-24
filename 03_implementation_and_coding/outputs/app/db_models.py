@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     Numeric,
     SmallInteger,
     String,
@@ -153,6 +154,18 @@ class PredictionBacktest(Base):
     evaluated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     prediction: Mapped[Prediction] = relationship(back_populates="backtest")
+
+
+class TrainedModel(Base):
+    """已持久化之訓練模型（REQ_004：版本化模型檔案）。每個 model_name 僅保留最新一筆。"""
+
+    __tablename__ = "trained_models"
+
+    model_name: Mapped[str] = mapped_column(String(40), primary_key=True)  # 目前僅 "factor_model"
+    model_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    trained_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sample_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    artifact: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
 
 class ApiKey(Base):

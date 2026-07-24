@@ -164,3 +164,15 @@ CREATE TABLE admin_users (
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE admin_users IS 'REQ_014：/admin 頁面帳號密碼登入用之後台管理者帳號，與 api_keys 分開管理';
+
+-- ---------------------------------------------------------------------------
+-- 10. trained_models — 已持久化之訓練模型（REQ_004：版本化模型檔案，Migration 005）
+-- ---------------------------------------------------------------------------
+CREATE TABLE trained_models (
+    model_name     VARCHAR(40)  PRIMARY KEY,        -- 目前僅 "factor_model"
+    model_version  VARCHAR(40)  NOT NULL,
+    trained_at     TIMESTAMPTZ  NOT NULL,
+    sample_size    INTEGER      NOT NULL,
+    artifact       BYTEA        NOT NULL             -- pickle 序列化後之模型內容
+);
+COMMENT ON TABLE trained_models IS 'REQ_004：model_retrain 訓練後持久化之模型，weekly_predict 優先載入推論，每個 model_name 僅保留最新一筆';

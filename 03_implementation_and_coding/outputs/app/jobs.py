@@ -1,9 +1,10 @@
-"""排程任務之真實擷取/預測邏輯（REQ_008/REQ_011/REQ_004~006）。取代 app/main.py 原本只記 log
+"""排程任務之真實擷取/預測邏輯（REQ_008/REQ_011/REQ_004~006/REQ_009）。取代 app/main.py 原本只記 log
 的佔位函式。
 
-涵蓋 4 個任務：3 個資料擷取（mops_ingest/sec_edgar_ingest/price_ingest）+ 1 個預測
-（weekly_predict，本次新增）。model_retrain/weekly_backtest 兩個任務仍維持 app/main.py 之
-stub，不在本次範圍——見 run_weekly_predict() 模組說明之「已知簡化」。
+涵蓋 6 個任務：3 個資料擷取（mops_ingest/sec_edgar_ingest/price_ingest）+ 1 個預測
+（weekly_predict）+ 1 個回測評分（weekly_backtest）+ 1 個模型重訓（model_retrain，本次新增，
+搭配 app/prediction/model_registry.py 完成 REQ_004 之模型持久化/版本化）。至此 app/main.py
+已無任何排程任務維持 stub。
 """
 
 from __future__ import annotations
@@ -15,12 +16,14 @@ from collections.abc import Callable
 import pandas as pd
 from sqlalchemy import select
 
-from app.db_models import Company, JobRun, Prediction, PriceHistory
+from app.db_models import Company, JobRun, Prediction, PredictionBacktest, PriceHistory
 from app.db_session import SessionLocal
 from app.ingestion import alpha_vantage_client, mops_client, sec_edgar_client, twse_price_client
 from app.ingestion.normalizer import upsert_financial_report, upsert_price_point
 from app.prediction import ensemble
 from app.prediction import features as prediction_features
+from app.prediction import model_registry
+from app.prediction.backtest import BacktestRecord
 from app.prediction.factor_model import FactorModel
 from app.prediction.timeseries_model import TimeSeriesModel
 
@@ -223,12 +226,11 @@ def run_price_ingest() -> None:
 # weekly_predict（REQ_004/005/006）：財報因子模型 + 時間序列模型 -> 每週預測
 # ---------------------------------------------------------------------------
 #
-# 已知簡化：REQ_004 驗收條件提到模型應「版本化模型檔案」，理想設計是 model_retrain（週日
-# 22:00）負責訓練並持久化模型、weekly_predict（週一 01:00）僅載入既有模型做推論。本次僅
-# 實作 weekly_predict，尚未實作獨立的模型持久化/版本管理，故採簡化設計：每次執行皆即時
-# 重新訓練財報因子模型（不快取），推論與訓練合一。以目前資料量（每次訓練僅需毫秒等級）
-# 這不構成效能問題；若日後資料量成長或需要真正的模型版本控管，才需要另外實作
-# model_retrain 將訓練與推論拆開。
+# REQ_004「版本化模型檔案」：model_retrain（週日 22:00，見 run_model_retrain()）負責訓練並
+# 透過 app/prediction/model_registry.py 持久化財報因子模型；weekly_predict（週一 01:00）
+# 改為優先呼叫 model_registry.load_factor_model() 載入既有模型做推論。若尚未有任何持久化
+# 模型（如全新部署、model_retrain 尚未執行過一次），fallback 為即時訓練（_train_pooled_
+# factor_model，與先前行為相同），確保 weekly_predict 不因缺少已持久化模型而整週無預測。
 
 
 def _this_week_monday(today: dt.date) -> dt.date:
@@ -342,7 +344,9 @@ def run_weekly_predict() -> None:
             logger.info("weekly_predict：無追蹤公司，略過")
             return
 
-        factor_model = _train_pooled_factor_model(session, companies)
+        factor_model = model_registry.load_factor_model(session)
+        if factor_model is None:
+            factor_model = _train_pooled_factor_model(session, companies)  # 尚未持久化過模型時的 bootstrap fallback
         base_week_start = _this_week_monday(dt.date.today())
 
         produced = 0
@@ -375,5 +379,158 @@ def run_weekly_predict() -> None:
         )
         if skipped:
             logger.warning("weekly_predict：%d 家公司略過：%s", len(skipped), skipped)
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# model_retrain（REQ_004）：訓練財報因子模型並持久化（版本化模型檔案）
+# ---------------------------------------------------------------------------
+#
+# 只處理跨公司彙總訓練的 FactorModel；TimeSeriesModel 是逐公司、用當週最新股價序列即時 fit
+# 的 ARIMA 模型，本質上每週都要用最新資料重新訓練，不適合也不需要持久化重用，故不在此範圍。
+
+
+def run_model_retrain() -> None:
+    session = SessionLocal()
+    try:
+        companies = session.execute(select(Company)).scalars().all()
+        if not companies:
+            logger.info("model_retrain：無追蹤公司，略過")
+            return
+
+        features_df, labels = prediction_features.build_training_dataset(session, companies)
+        if len(features_df) < 10:
+            logger.info(
+                "model_retrain：財報歷史樣本仍不足訓練門檻（%d 筆 < 10 筆），保留既有已持久化模型（若有）",
+                len(features_df),
+            )
+            return
+
+        model = FactorModel().fit(features_df, labels)
+        model_registry.save_factor_model(
+            session, model, version=MODEL_VERSION, sample_size=len(features_df), trained_at=dt.datetime.now(dt.UTC)
+        )
+        session.commit()
+        logger.info("model_retrain：完成財報因子模型訓練並持久化（樣本數 %d）", len(features_df))
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# weekly_backtest（REQ_009）：拿歷史預測比對實際股價，評分方向/區間命中率
+# ---------------------------------------------------------------------------
+#
+# 評分資格採資料驅動（而非日曆天數門檻）：一筆 Prediction 只要能找到基準收盤價、以及基準日
+# 之後第 5 個「實際已入庫」交易日收盤價（對應 TimeSeriesModel.TRADING_DAYS_PER_WEEK），即視
+# 為可評分；找不到就略過，留給下次排程（每週一 01:30）重試。此設計不需另外實作台股/美股假
+# 日曆邏輯，且能自動應對 price_ingest 延遲的情況。已評分過的預測（prediction_backtests 已有
+# 對應列）不會重新評分。
+
+BACKTEST_BASELINE_LOOKBACK_DAYS = 7  # 往回找基準收盤價的容許回溯天數（含一般週末+假日）
+BACKTEST_TARGET_TRADING_DAYS = 5  # 對應 TimeSeriesModel.TRADING_DAYS_PER_WEEK
+BACKTEST_TARGET_MAX_SPAN_DAYS = 21  # 基準日到第 5 個交易日相隔上限，超過視為資料缺口，略過
+
+
+def _nearest_baseline_price(session, company_id: int, base_week_start: dt.date) -> PriceHistory | None:
+    """找 base_week_start_date 當日、或最近之前一個已有資料的交易日收盤價。
+
+    只往回找（不往未來找），避免用預測當時尚不存在的股價當基準，造成資料外洩。
+    """
+    return session.execute(
+        select(PriceHistory)
+        .where(
+            PriceHistory.company_id == company_id,
+            PriceHistory.trade_date <= base_week_start,
+            PriceHistory.trade_date >= base_week_start - dt.timedelta(days=BACKTEST_BASELINE_LOOKBACK_DAYS),
+        )
+        .order_by(PriceHistory.trade_date.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+
+def _target_price_after(session, company_id: int, baseline_date: dt.date) -> PriceHistory | None:
+    """從基準交易日之後，依實際已入庫的交易日序列（非日曆天）數第 5 個交易日收盤價。
+
+    不足 5 筆、或跨度超過 BACKTEST_TARGET_MAX_SPAN_DAYS（例如長期停牌造成的資料缺口）
+    則回傳 None，避免生成「名為一週、實為數月」的失真回測結果。
+    """
+    rows = (
+        session.execute(
+            select(PriceHistory)
+            .where(
+                PriceHistory.company_id == company_id,
+                PriceHistory.trade_date > baseline_date,
+                PriceHistory.trade_date <= baseline_date + dt.timedelta(days=BACKTEST_TARGET_MAX_SPAN_DAYS),
+            )
+            .order_by(PriceHistory.trade_date.asc())
+            .limit(BACKTEST_TARGET_TRADING_DAYS)
+        )
+        .scalars()
+        .all()
+    )
+    if len(rows) < BACKTEST_TARGET_TRADING_DAYS:
+        return None
+    return rows[-1]
+
+
+def run_weekly_backtest() -> None:
+    session = SessionLocal()
+    try:
+        pending = (
+            session.execute(
+                select(Prediction)
+                .outerjoin(PredictionBacktest, PredictionBacktest.prediction_id == Prediction.prediction_id)
+                .where(PredictionBacktest.backtest_id.is_(None))
+            )
+            .scalars()
+            .all()
+        )
+        if not pending:
+            logger.info("weekly_backtest：無待評分之預測，略過")
+            return
+
+        graded = 0
+        skipped: list[str] = []
+        for prediction in pending:
+            label = f"prediction_id={prediction.prediction_id}"
+            try:
+                baseline = _nearest_baseline_price(session, prediction.company_id, prediction.base_week_start_date)
+                if baseline is None:
+                    skipped.append(f"{label}（找不到基準收盤價，待下次重試）")
+                    continue
+
+                target = _target_price_after(session, prediction.company_id, baseline.trade_date)
+                if target is None:
+                    skipped.append(f"{label}（目標交易日股價尚未到位，待下次重試）")
+                    continue
+
+                actual_return_pct = (
+                    (float(target.close_price) - float(baseline.close_price)) / float(baseline.close_price) * 100
+                )
+                record = BacktestRecord(
+                    predicted_direction=prediction.direction,
+                    range_lower_pct=float(prediction.range_lower_pct),
+                    range_upper_pct=float(prediction.range_upper_pct),
+                    actual_return_pct=actual_return_pct,
+                )
+                session.add(
+                    PredictionBacktest(
+                        prediction_id=prediction.prediction_id,
+                        actual_direction=record.actual_direction,
+                        actual_return_pct=actual_return_pct,
+                        direction_hit=record.direction_hit,
+                        range_hit=record.range_hit,
+                    )
+                )
+                graded += 1
+            except Exception as exc:  # noqa: BLE001 - 批次隔離：單一預測評分失敗不應中斷其餘預測
+                logger.exception("weekly_backtest：%s 評分失敗", label)
+                skipped.append(f"{label}（{exc}）")
+
+        session.commit()
+        logger.info("weekly_backtest：完成 %d 筆預測之回測評分", graded)
+        if skipped:
+            logger.warning("weekly_backtest：%d 筆預測略過：%s", len(skipped), skipped)
     finally:
         session.close()

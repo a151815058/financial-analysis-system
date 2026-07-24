@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,24 +12,21 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.db_session import init_db
-from app.jobs import run_mops_ingest, run_price_ingest, run_sec_edgar_ingest, run_weekly_predict, track_job
+from app.jobs import (
+    run_mops_ingest,
+    run_model_retrain,
+    run_price_ingest,
+    run_sec_edgar_ingest,
+    run_weekly_backtest,
+    run_weekly_predict,
+    track_job,
+)
 from app.routers import admin, auth, companies, predictions
 from app.scheduler import build_scheduler
 
 STATIC_DIR = Path(__file__).parent / "static"
 
 DISCLAIMER = "本系統輸出僅供分析參考，不構成投資建議。過往預測準確率不代表未來績效。"
-
-logger = logging.getLogger(__name__)
-
-
-def _stub_job(task_name: str):
-    """佔位任務函式：實際擷取/訓練/回測邏輯待與資料庫協調層整合時實作（見 scheduler.py 模組說明）。"""
-
-    def _run() -> None:
-        logger.warning("排程任務 %s 已觸發，但實作尚未串接資料庫協調層，本次僅記錄未執行", task_name)
-
-    return _run
 
 
 @asynccontextmanager
@@ -42,11 +38,12 @@ async def lifespan(_: FastAPI):
         "mops_ingest": track_job("mops_ingest", run_mops_ingest),
         "sec_edgar_ingest": track_job("sec_edgar_ingest", run_sec_edgar_ingest),
         "price_ingest": track_job("price_ingest", run_price_ingest),
-        # REQ_004/005/006：財報因子模型 + 時間序列模型 -> 每週預測（見 app/jobs.py 模組說明之已知簡化）
+        # REQ_004/005/006：財報因子模型 + 時間序列模型 -> 每週預測（見 app/jobs.py 模組說明）
         "weekly_predict": track_job("weekly_predict", run_weekly_predict),
-        # model_retrain/weekly_backtest 仍待實作，維持佔位函式
-        "model_retrain": track_job("model_retrain", _stub_job("model_retrain")),
-        "weekly_backtest": track_job("weekly_backtest", _stub_job("weekly_backtest")),
+        # REQ_009：拿歷史預測比對實際股價，評分方向/區間命中率（app/jobs.py::run_weekly_backtest）
+        "weekly_backtest": track_job("weekly_backtest", run_weekly_backtest),
+        # REQ_004：訓練並持久化（版本化）財報因子模型（app/jobs.py::run_model_retrain）
+        "model_retrain": track_job("model_retrain", run_model_retrain),
     }
     scheduler = build_scheduler(job_functions)
     scheduler.start()
