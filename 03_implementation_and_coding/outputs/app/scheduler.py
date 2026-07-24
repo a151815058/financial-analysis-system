@@ -30,10 +30,11 @@ def build_scheduler(job_functions: dict[str, callable]) -> BackgroundScheduler:
             id="sec_edgar_ingest",
         )
     if "price_ingest" in job_functions:
-        # Alpha Vantage 免費層級速率限制（5 次/分鐘），股價擷取排於財報擷取之後並分散時間
+        # 股價擷取改為每日執行（原僅每週一，財報擷取仍維持每週一次）；
+        # Alpha Vantage 免費層級速率限制（5 次/分鐘），排定於財報擷取時段之後
         scheduler.add_job(
             job_functions["price_ingest"],
-            CronTrigger(day_of_week="mon", hour=0, minute=30),
+            CronTrigger(hour=0, minute=30),
             id="price_ingest",
         )
     if "weekly_predict" in job_functions:
